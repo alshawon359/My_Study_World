@@ -43,7 +43,15 @@ export default function SchedulePage() {
   const userId = 'cmtszibhe0000uzf04p06d1fe';
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    description: string;
+    category: BlockCategory;
+    priority: Priority;
+    startTime: string;
+    endTime: string;
+    subject: string;
+  }>({
     title: '',
     description: '',
     category: BlockCategory.ACADEMIC,

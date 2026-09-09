@@ -18,8 +18,6 @@ const nextConfig: NextConfig = {
       '@radix-ui/react-select',
       '@radix-ui/react-label',
     ],
-    // Allow network access from any local IP
-    allowedDevOrigins: ['*'],
   },
   
   // Images

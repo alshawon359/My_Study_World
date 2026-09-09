@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     const tasks = await Promise.all(
       scheduleBlocks.map((block) => {
-        let status = TaskStatus.PENDING;
+        let status: TaskStatus = TaskStatus.PENDING;
         
         if (isToday) {
           if (block.endTime <= currentTime) {
