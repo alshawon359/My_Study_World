@@ -48,9 +48,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Clean data: remove empty strings, convert to null or omit
+    const cleanData: any = {
+      title: data.title,
+      category: data.category,
+      type: data.type,
+      priority: data.priority,
+      dayOfWeek: data.dayOfWeek,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      duration: data.duration,
+      recurring: data.recurring ?? true,
+    };
+
+    // Add optional fields only if they have values
+    if (data.description && data.description.trim()) {
+      cleanData.description = data.description.trim();
+    }
+    if (data.subject && data.subject.trim()) {
+      cleanData.subject = data.subject.trim();
+    }
+    if (data.taskObjective && data.taskObjective.trim()) {
+      cleanData.taskObjective = data.taskObjective.trim();
+    }
+    if (data.notes && data.notes.trim()) {
+      cleanData.notes = data.notes.trim();
+    }
+    if (data.color) {
+      cleanData.color = data.color;
+    }
+    if (data.icon) {
+      cleanData.icon = data.icon;
+    }
+
     const scheduleBlock = await prisma.scheduleBlock.create({
       data: {
-        ...data,
+        ...cleanData,
         userId,
       },
     });
@@ -77,16 +110,30 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Clean update data: remove empty strings
+    const cleanData: any = {};
+    
+    for (const [key, value] of Object.entries(data)) {
+      if (value === null) {
+        cleanData[key] = null;
+      } else if (typeof value === 'string' && value.trim() === '') {
+        // Skip empty strings - don't update
+        continue;
+      } else if (value !== undefined) {
+        cleanData[key] = value;
+      }
+    }
+
     const scheduleBlock = await prisma.scheduleBlock.update({
       where: { id },
-      data,
+      data: cleanData,
     });
 
     return NextResponse.json(scheduleBlock);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating schedule block:', error);
     return NextResponse.json(
-      { error: 'Failed to update schedule block' },
+      { error: error.message || 'Failed to update schedule block' },
       { status: 500 }
     );
   }
