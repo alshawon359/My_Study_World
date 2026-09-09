@@ -5,20 +5,23 @@
 
 /**
  * Get current date in Bangladesh timezone
+ * Manually calculates UTC+6 offset
  */
 export function getBDDate(): Date {
-  // Use toLocaleString to get BD time properly
-  const bdTimeString = new Date().toLocaleString('en-US', {
-    timeZone: 'Asia/Dhaka',
-  });
-  return new Date(bdTimeString);
+  const now = new Date();
+  // Get UTC time in milliseconds
+  const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+  // Add 6 hours for Bangladesh (UTC+6)
+  const bdTime = new Date(utcTime + (6 * 60 * 60 * 1000));
+  return bdTime;
 }
 
 /**
  * Get current day of week in BD timezone (0 = Sunday, 6 = Saturday)
  */
 export function getBDDayOfWeek(): number {
-  return getBDDate().getDay();
+  const bdDate = getBDDate();
+  return bdDate.getUTCDay(); // Use UTC methods since we already adjusted the time
 }
 
 /**
@@ -26,7 +29,10 @@ export function getBDDayOfWeek(): number {
  */
 export function getBDDateString(): string {
   const bdDate = getBDDate();
-  return bdDate.toISOString().split('T')[0];
+  const year = bdDate.getUTCFullYear();
+  const month = String(bdDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(bdDate.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -34,8 +40,8 @@ export function getBDDateString(): string {
  */
 export function getBDTimeString(): string {
   const bdDate = getBDDate();
-  const hours = bdDate.getHours().toString().padStart(2, '0');
-  const minutes = bdDate.getMinutes().toString().padStart(2, '0');
+  const hours = String(bdDate.getUTCHours()).padStart(2, '0');
+  const minutes = String(bdDate.getUTCMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
 }
 
@@ -43,15 +49,21 @@ export function getBDTimeString(): string {
  * Convert date string to start of day in BD timezone
  */
 export function getBDStartOfDay(dateStr: string): Date {
-  // Parse as UTC midnight, then adjust to BD timezone
-  return new Date(dateStr + 'T00:00:00.000+06:00');
+  // Parse date string and create BD midnight
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const bdMidnight = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  // Subtract 6 hours to get the actual UTC time that represents BD midnight
+  return new Date(bdMidnight.getTime() - (6 * 60 * 60 * 1000));
 }
 
 /**
  * Convert date string to end of day in BD timezone
  */
 export function getBDEndOfDay(dateStr: string): Date {
-  return new Date(dateStr + 'T23:59:59.999+06:00');
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const bdEndOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+  // Subtract 6 hours to get the actual UTC time that represents BD end of day
+  return new Date(bdEndOfDay.getTime() - (6 * 60 * 60 * 1000));
 }
 
 /**
