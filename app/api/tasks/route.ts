@@ -20,54 +20,29 @@ export async function GET(request: NextRequest) {
     let tasks;
     
     if (dateStr) {
-      // Optimized query - fetch all and filter in memory (faster for small datasets)
-      const allTasks = await prisma.task.findMany({
-        where: { userId },
-        orderBy: { startTime: 'asc' },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          category: true,
-          priority: true,
-          status: true,
-          date: true,
-          startTime: true,
-          endTime: true,
-          duration: true,
-          completionPercentage: true,
+      // Query by date range for accuracy
+      const startOfDay = new Date(dateStr + 'T00:00:00.000Z');
+      const endOfDay = new Date(dateStr + 'T23:59:59.999Z');
+      
+      tasks = await prisma.task.findMany({
+        where: { 
+          userId,
+          date: {
+            gte: startOfDay,
+            lte: endOfDay,
+          }
         },
+        orderBy: { startTime: 'asc' },
       });
       
-      console.log(`📊 Total tasks for user: ${allTasks.length}`);
-      
-      // Filter by comparing date strings (YYYY-MM-DD)
-      tasks = allTasks.filter(task => {
-        const taskDateStr = task.date.toISOString().split('T')[0];
-        return taskDateStr === dateStr;
-      });
-      
-      console.log(`✅ Tasks for date ${dateStr}: ${tasks.length}`);
+      console.log(`✅ Found ${tasks.length} tasks for date ${dateStr}`);
     } else {
       tasks = await prisma.task.findMany({
         where: { userId },
-        orderBy: { startTime: 'asc' },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          category: true,
-          priority: true,
-          status: true,
-          date: true,
-          startTime: true,
-          endTime: true,
-          duration: true,
-          completionPercentage: true,
-        },
+        orderBy: [{ date: 'desc' }, { startTime: 'asc' }],
       });
       
-      console.log(`✅ All tasks for user: ${tasks.length}`);
+      console.log(`✅ Found ${tasks.length} total tasks for user`);
     }
 
     return NextResponse.json(tasks);

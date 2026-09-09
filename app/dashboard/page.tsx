@@ -45,72 +45,89 @@ export default function DashboardPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Dashboard: Loading data...');
+      console.log('🔄 Dashboard: Starting data load...');
       
-      // Load schedule blocks first
       const currentDay = getCurrentDayOfWeek();
-      console.log(`📅 Current day of week: ${currentDay}`);
+      const dateStr = getDateString();
       
+      console.log(`📅 Today: ${dateStr}, Day of week: ${currentDay}`);
+      
+      // Step 1: Load schedule blocks
+      console.log(`🔍 Fetching schedule blocks for day ${currentDay}...`);
       const scheduleRes = await fetch(`/api/schedule?userId=${userId}&dayOfWeek=${currentDay}`);
+      
       let scheduleData = [];
       if (scheduleRes.ok) {
         scheduleData = await scheduleRes.json();
+        console.log(`✅ Loaded ${scheduleData.length} schedule blocks`);
         setScheduleBlocks(scheduleData);
-        console.log(`📋 Schedule blocks loaded: ${scheduleData.length}`);
       } else {
-        console.error('❌ Failed to load schedule blocks:', await scheduleRes.text());
+        const errorText = await scheduleRes.text();
+        console.error('❌ Failed to load schedule:', errorText);
       }
 
-      // Load tasks
-      const dateStr = getDateString();
-      console.log(`📅 Loading tasks for date: ${dateStr}`);
-      
+      // Step 2: Try to load existing tasks
+      console.log(`🔍 Fetching tasks for date ${dateStr}...`);
       const tasksRes = await fetch(`/api/tasks?userId=${userId}&date=${dateStr}`);
+      
       let tasksData = [];
       if (tasksRes.ok) {
         tasksData = await tasksRes.json();
-        console.log(`📊 Tasks loaded: ${tasksData.length}`);
+        console.log(`✅ Loaded ${tasksData.length} existing tasks`);
       } else {
-        console.error('❌ Failed to load tasks:', await tasksRes.text());
+        const errorText = await tasksRes.text();
+        console.error('❌ Failed to load tasks:', errorText);
       }
 
-      // If no tasks but schedule blocks exist, generate tasks automatically
+      // Step 3: Auto-generate if needed
       if (tasksData.length === 0 && scheduleData.length > 0) {
-        console.log('⚠️ No tasks found, but schedule blocks exist. Auto-generating...');
-        const generateRes = await fetch('/api/tasks/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, date: dateStr }),
-        });
+        console.log('⚡ No tasks found but schedule blocks exist. Generating tasks...');
+        
+        try {
+          const generateRes = await fetch('/api/tasks/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, date: dateStr }),
+          });
 
-        if (generateRes.ok) {
-          const generated = await generateRes.json();
-          tasksData = generated.tasks || [];
-          console.log(`✅ Generated ${tasksData.length} tasks`);
-          toast({
-            title: 'Tasks Generated',
-            description: `Created ${tasksData.length} tasks from your schedule`,
-          });
-        } else {
-          console.error('❌ Failed to generate tasks:', await generateRes.text());
-          toast({
-            title: 'Error',
-            description: 'Failed to generate tasks from schedule',
-            variant: 'destructive',
-          });
+          if (generateRes.ok) {
+            const result = await generateRes.json();
+            tasksData = result.tasks || [];
+            console.log(`✅ Generated ${tasksData.length} tasks successfully`);
+            
+            if (tasksData.length > 0) {
+              toast({
+                title: 'Tasks Generated',
+                description: `Created ${tasksData.length} tasks from your schedule`,
+              });
+            }
+          } else {
+            const errorData = await generateRes.json();
+            console.error('❌ Task generation failed:', errorData);
+            toast({
+              title: 'Generation Failed',
+              description: errorData.error || 'Could not generate tasks',
+              variant: 'destructive',
+            });
+          }
+        } catch (genError) {
+          console.error('❌ Exception during task generation:', genError);
         }
-      } else if (tasksData.length === 0 && scheduleData.length === 0) {
-        console.log('⚠️ No schedule blocks found for today');
+      } else if (scheduleData.length === 0) {
+        console.log('ℹ️ No schedule blocks found for today');
+      } else {
+        console.log(`ℹ️ Using ${tasksData.length} existing tasks`);
       }
 
       setTodayTasks(tasksData);
-      console.log('✅ Dashboard data loaded successfully');
+      console.log('✅ Dashboard data load complete');
+      
     } catch (error: any) {
-      console.error('❌ Error loading data:', error);
-      console.error('Error details:', error.message);
+      console.error('❌ Fatal error in loadData:', error);
+      console.error('Stack:', error.stack);
       toast({
         title: 'Error',
-        description: 'Failed to load data',
+        description: 'Failed to load dashboard data',
         variant: 'destructive',
       });
     } finally {
