@@ -152,7 +152,7 @@ export default function AIRoadmapPage() {
           topic.id === topicId ? { ...topic, completed: !topic.completed } : topic
         );
         const completedCount = updatedTopics.filter(t => t.completed).length;
-        const status = completedCount === 0 ? 'not-started' 
+        const status: 'not-started' | 'in-progress' | 'completed' = completedCount === 0 ? 'not-started' 
           : completedCount === updatedTopics.length ? 'completed' 
           : 'in-progress';
         return { ...level, topics: updatedTopics, status };
