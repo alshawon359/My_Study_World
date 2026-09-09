@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { TaskStatus } from '@prisma/client';
+import { getBDDate, getBDDateString, getBDTimeString, getBDStartOfDay, getBDEndOfDay } from '@/lib/date-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,12 +14,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    // Parse the date string to Date object
-    const targetDate = date ? new Date(date + 'T00:00:00.000Z') : new Date();
-    const dayOfWeek = targetDate.getUTCDay(); // Use UTC to avoid timezone issues
+    // Use BD timezone for date calculation
+    const bdDate = date ? new Date(date + 'T00:00:00.000+06:00') : getBDDate();
+    const dayOfWeek = bdDate.getDay();
+    const dateStr = date || getBDDateString();
     
-    const dateStr = targetDate.toISOString().split('T')[0];
-    console.log(`📅 Generating tasks for date: ${dateStr}, UTC Day: ${dayOfWeek}`);
+    console.log(`📅 BD Time: ${bdDate.toISOString()}`);
+    console.log(`📅 Generating tasks for date: ${dateStr}, Day: ${dayOfWeek} (${getDayName(dayOfWeek)})`);
 
     // Get schedule blocks for this day
     const scheduleBlocks = await prisma.scheduleBlock.findMany({
@@ -41,9 +43,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Delete existing tasks for this specific date (using date range for safety)
-    const startOfDay = new Date(dateStr + 'T00:00:00.000Z');
-    const endOfDay = new Date(dateStr + 'T23:59:59.999Z');
+    // Delete existing tasks for this specific date
+    const startOfDay = getBDStartOfDay(dateStr);
+    const endOfDay = getBDEndOfDay(dateStr);
     
     const deleted = await prisma.task.deleteMany({
       where: {
@@ -57,12 +59,12 @@ export async function POST(request: NextRequest) {
 
     console.log(`🗑️ Deleted ${deleted.count} existing tasks for ${dateStr}`);
 
-    // Determine current status based on time
-    const now = new Date();
-    const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    const isToday = now.toISOString().split('T')[0] === dateStr;
+    // Determine current status based on BD time
+    const currentTimeStr = getBDTimeString();
+    const todayStr = getBDDateString();
+    const isToday = dateStr === todayStr;
 
-    console.log(`🕐 Current time: ${currentTimeStr}, Is today: ${isToday}`);
+    console.log(`🕐 Current BD time: ${currentTimeStr}, Is today: ${isToday}`);
 
     // Create tasks from schedule blocks
     const tasks = [];
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
           startTime: block.startTime,
           endTime: block.endTime,
           duration: block.duration,
-          date: startOfDay, // Use start of day for consistency
+          date: startOfDay,
           status,
           priority: block.priority,
           scheduleBlockId: block.id,
@@ -109,6 +111,7 @@ export async function POST(request: NextRequest) {
       tasks,
       date: dateStr,
       dayOfWeek,
+      bdTime: getBDDate().toISOString(),
     });
   } catch (error: any) {
     console.error('❌ Error generating tasks:', error);
@@ -121,4 +124,9 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function getDayName(dayOfWeek: number): string {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return days[dayOfWeek];
 }

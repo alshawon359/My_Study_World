@@ -7,7 +7,8 @@ import { StatusIndicator } from '@/components/status-indicator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { getGreeting, formatDate, getCurrentDayOfWeek, getDateString } from '@/lib/utils';
+import { getGreeting, formatDate } from '@/lib/utils';
+import { getBDDayOfWeek, getBDDateString, getBDTimeString } from '@/lib/date-utils';
 import { calculateDailyStatus } from '@/lib/scheduling-engine';
 import { Task, ScheduleBlock, TaskStatus } from '@prisma/client';
 import { Clock, Calendar, CheckCircle2, Play } from 'lucide-react';
@@ -47,10 +48,10 @@ export default function DashboardPage() {
       setLoading(true);
       console.log('🔄 Dashboard: Starting data load...');
       
-      const currentDay = getCurrentDayOfWeek();
-      const dateStr = getDateString();
+      const currentDay = getBDDayOfWeek();
+      const dateStr = getBDDateString();
       
-      console.log(`📅 Today: ${dateStr}, Day of week: ${currentDay}`);
+      console.log(`📅 Today (BD time): ${dateStr}, Day of week: ${currentDay}`);
       
       // Step 1: Load schedule blocks
       console.log(`🔍 Fetching schedule blocks for day ${currentDay}...`);
@@ -135,8 +136,8 @@ export default function DashboardPage() {
     }
   };
 
-  // Find current task
-  const currentTimeStr = currentTime.toTimeString().slice(0, 5);
+  // Find current task (using BD timezone)
+  const currentTimeStr = getBDTimeString();
   
   const currentTask = useMemo(() => 
     todayTasks.find(
@@ -438,7 +439,7 @@ export default function DashboardPage() {
                       const res = await fetch('/api/tasks/generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ userId, date: getDateString() }),
+                        body: JSON.stringify({ userId, date: getBDDateString() }),
                       });
                       if (res.ok) {
                         await loadData(); // Reload immediately

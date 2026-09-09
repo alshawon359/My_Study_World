@@ -1,25 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getBDDate, getBDDayOfWeek, getBDDateString, getBDTimeString, getBDStartOfDay, getBDEndOfDay } from '@/lib/date-utils';
 
 /**
- * Test the complete Schedule → Dashboard flow
+ * Test the complete Schedule → Dashboard flow using BD timezone
  * This endpoint simulates the entire process
  */
 export async function POST(request: NextRequest) {
   const results: any = {
-    timestamp: new Date().toISOString(),
+    bdTimestamp: getBDDate().toISOString(),
+    bdTime: getBDTimeString(),
+    bdDate: getBDDateString(),
+    bdDayOfWeek: getBDDayOfWeek(),
     steps: [],
   };
 
   try {
     const { userId = 'cmtszibhe0000uzf04p06d1fe' } = await request.json().catch(() => ({}));
     
-    // Step 1: Create a test schedule block for today
-    results.steps.push({ step: 1, action: 'Creating schedule block for today...' });
+    // Step 1: Create a test schedule block for today (BD timezone)
+    results.steps.push({ step: 1, action: 'Creating schedule block for today (BD time)...' });
     
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const currentTime = today.toTimeString().slice(0, 5);
+    const dayOfWeek = getBDDayOfWeek();
+    const currentTime = getBDTimeString();
     const [h, m] = currentTime.split(':').map(Number);
     const startTime = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     const endTime = `${(h + 1).toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
@@ -27,8 +30,8 @@ export async function POST(request: NextRequest) {
     const scheduleBlock = await prisma.scheduleBlock.create({
       data: {
         userId,
-        title: 'Test Task from API',
-        description: 'Testing schedule to dashboard flow',
+        title: 'Test Task from API (BD Time)',
+        description: 'Testing schedule to dashboard flow with BD timezone',
         category: 'ACADEMIC',
         type: 'FLEXIBLE',
         priority: 'HIGH',
@@ -47,14 +50,16 @@ export async function POST(request: NextRequest) {
       blockId: scheduleBlock.id,
       dayOfWeek,
       startTime,
-      endTime
+      endTime,
+      bdTime: currentTime,
     });
 
     // Step 2: Generate tasks from this schedule
     results.steps.push({ step: 2, action: 'Generating tasks...' });
     
-    const dateStr = today.toISOString().split('T')[0];
-    const startOfDay = new Date(dateStr + 'T00:00:00.000Z');
+    const dateStr = getBDDateString();
+    const startOfDay = getBDStartOfDay(dateStr);
+    const endOfDay = getBDEndOfDay(dateStr);
     
     // Delete old tasks
     await prisma.task.deleteMany({
@@ -62,7 +67,7 @@ export async function POST(request: NextRequest) {
         userId,
         date: {
           gte: startOfDay,
-          lte: new Date(dateStr + 'T23:59:59.999Z'),
+          lte: endOfDay,
         },
       },
     });
@@ -109,7 +114,7 @@ export async function POST(request: NextRequest) {
         userId,
         date: {
           gte: startOfDay,
-          lte: new Date(dateStr + 'T23:59:59.999Z'),
+          lte: endOfDay,
         },
       },
     });
@@ -122,6 +127,7 @@ export async function POST(request: NextRequest) {
 
     results.success = true;
     results.message = `✅ Complete flow works! Created ${tasks.length} tasks that dashboard can now display.`;
+    results.timezone = 'Bangladesh (UTC+6)';
     
     return NextResponse.json(results);
 
