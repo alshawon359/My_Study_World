@@ -126,6 +126,20 @@ export default function SchedulePage() {
             description: 'Time block updated successfully',
           });
           await loadSchedule();
+          
+          // Auto-regenerate tasks if editing today's schedule
+          const today = new Date().getDay();
+          if (editingBlock.dayOfWeek === today) {
+            console.log('🔄 Schedule updated for today, regenerating tasks...');
+            const dateStr = new Date().toISOString().split('T')[0];
+            await fetch('/api/tasks/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, date: dateStr }),
+            });
+            console.log('✅ Tasks regenerated for today');
+          }
+          
           closeDialog();
         } else {
           const error = await response.json();
@@ -158,6 +172,20 @@ export default function SchedulePage() {
             description: 'New time block added successfully',
           });
           await loadSchedule();
+          
+          // Auto-generate tasks if schedule is for today
+          const today = new Date().getDay();
+          if (selectedDay === today) {
+            console.log('🔄 Schedule created for today, generating tasks...');
+            const dateStr = new Date().toISOString().split('T')[0];
+            await fetch('/api/tasks/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, date: dateStr }),
+            });
+            console.log('✅ Tasks regenerated for today');
+          }
+          
           closeDialog();
         } else {
           const error = await response.json();
@@ -192,7 +220,7 @@ export default function SchedulePage() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (blockId: string) => {
+  const handleDelete = async (blockId: string, block: ScheduleBlock) => {
     if (!confirm('Are you sure you want to delete this time block?')) return;
 
     try {
@@ -205,7 +233,20 @@ export default function SchedulePage() {
           title: 'Schedule Deleted',
           description: 'Time block removed successfully',
         });
-        loadSchedule();
+        await loadSchedule();
+        
+        // Auto-regenerate tasks if deleting today's schedule
+        const today = new Date().getDay();
+        if (block.dayOfWeek === today) {
+          console.log('🔄 Schedule deleted for today, regenerating tasks...');
+          const dateStr = new Date().toISOString().split('T')[0];
+          await fetch('/api/tasks/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, date: dateStr }),
+          });
+          console.log('✅ Tasks regenerated for today');
+        }
       }
     } catch (error) {
       console.error('Error deleting schedule:', error);
@@ -466,7 +507,7 @@ export default function SchedulePage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(block.id)}
+                          onClick={() => handleDelete(block.id, block)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
