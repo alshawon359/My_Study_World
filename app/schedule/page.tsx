@@ -125,8 +125,15 @@ export default function SchedulePage() {
             title: 'Schedule Updated',
             description: 'Time block updated successfully',
           });
-          loadSchedule();
+          await loadSchedule();
           closeDialog();
+        } else {
+          const error = await response.json();
+          toast({
+            title: 'Error',
+            description: error.error || 'Failed to update schedule',
+            variant: 'destructive',
+          });
         }
       } else {
         // Create new block
@@ -150,15 +157,22 @@ export default function SchedulePage() {
             title: 'Schedule Created',
             description: 'New time block added successfully',
           });
-          loadSchedule();
+          await loadSchedule();
           closeDialog();
+        } else {
+          const error = await response.json();
+          toast({
+            title: 'Error',
+            description: error.error || 'Failed to create schedule',
+            variant: 'destructive',
+          });
         }
       }
     } catch (error) {
       console.error('Error saving schedule:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save schedule',
+        description: 'Failed to save schedule. Please try again.',
         variant: 'destructive',
       });
     }

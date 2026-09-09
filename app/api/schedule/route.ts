@@ -43,6 +43,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
+    // Validate required fields
+    if (!data.title || !data.startTime || !data.endTime || data.dayOfWeek === undefined) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
     const scheduleBlock = await prisma.scheduleBlock.create({
       data: {
         ...data,
@@ -51,10 +56,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(scheduleBlock);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating schedule block:', error);
     return NextResponse.json(
-      { error: 'Failed to create schedule block' },
+      { error: error.message || 'Failed to create schedule block' },
       { status: 500 }
     );
   }
