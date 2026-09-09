@@ -1,18 +1,17 @@
 /**
  * Date utilities that handle Bangladesh timezone properly
- * BD timezone: UTC+6
+ * BD timezone: Asia/Dhaka (UTC+6)
  */
-
-// Bangladesh timezone offset in hours
-const BD_OFFSET = 6;
 
 /**
  * Get current date in Bangladesh timezone
  */
 export function getBDDate(): Date {
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  return new Date(utc + (3600000 * BD_OFFSET));
+  // Use toLocaleString to get BD time properly
+  const bdTimeString = new Date().toLocaleString('en-US', {
+    timeZone: 'Asia/Dhaka',
+  });
+  return new Date(bdTimeString);
 }
 
 /**
