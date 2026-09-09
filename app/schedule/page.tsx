@@ -127,17 +127,24 @@ export default function SchedulePage() {
           });
           await loadSchedule();
           
-          // Auto-regenerate tasks if editing today's schedule
+          // Sync tasks if updating today's schedule
           const today = new Date().getDay();
           if (editingBlock.dayOfWeek === today) {
-            console.log('🔄 Schedule updated for today, regenerating tasks...');
-            const dateStr = new Date().toISOString().split('T')[0];
-            await fetch('/api/tasks/generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId, date: dateStr }),
-            });
-            console.log('✅ Tasks regenerated for today');
+            console.log('🔄 Syncing tasks after update...');
+            try {
+              const syncRes = await fetch('/api/sync-tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId }),
+              });
+              
+              if (syncRes.ok) {
+                const result = await syncRes.json();
+                console.log(`✅ ${result.count} tasks synced`);
+              }
+            } catch (error) {
+              console.error('Task sync error:', error);
+            }
           }
           
           closeDialog();
@@ -173,17 +180,28 @@ export default function SchedulePage() {
           });
           await loadSchedule();
           
-          // Auto-generate tasks if schedule is for today
+          // Sync tasks immediately for today
           const today = new Date().getDay();
           if (selectedDay === today) {
-            console.log('🔄 Schedule created for today, generating tasks...');
-            const dateStr = new Date().toISOString().split('T')[0];
-            await fetch('/api/tasks/generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId, date: dateStr }),
-            });
-            console.log('✅ Tasks regenerated for today');
+            console.log('🔄 Syncing tasks for today...');
+            try {
+              const syncRes = await fetch('/api/sync-tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId }),
+              });
+              
+              if (syncRes.ok) {
+                const result = await syncRes.json();
+                console.log(`✅ ${result.count} tasks synced`);
+                toast({
+                  title: 'Tasks Updated',
+                  description: `${result.count} tasks generated for today`,
+                });
+              }
+            } catch (error) {
+              console.error('Task sync error:', error);
+            }
           }
           
           closeDialog();
@@ -235,17 +253,24 @@ export default function SchedulePage() {
         });
         await loadSchedule();
         
-        // Auto-regenerate tasks if deleting today's schedule
+        // Sync tasks if deleting today's schedule
         const today = new Date().getDay();
         if (block.dayOfWeek === today) {
-          console.log('🔄 Schedule deleted for today, regenerating tasks...');
-          const dateStr = new Date().toISOString().split('T')[0];
-          await fetch('/api/tasks/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, date: dateStr }),
-          });
-          console.log('✅ Tasks regenerated for today');
+          console.log('🔄 Syncing tasks after delete...');
+          try {
+            const syncRes = await fetch('/api/sync-tasks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId }),
+            });
+            
+            if (syncRes.ok) {
+              const result = await syncRes.json();
+              console.log(`✅ ${result.count} tasks synced`);
+            }
+          } catch (error) {
+            console.error('Task sync error:', error);
+          }
         }
       }
     } catch (error) {
