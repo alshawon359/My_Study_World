@@ -1,0 +1,774 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings         UserSettings?
+  scheduleBlocks   ScheduleBlock[]
+  tasks            Task[]
+  subjects         Subject[]
+  goals            Goal[]
+  studySessions    StudySession[]
+  habits           Habit[]
+  habitLogs        HabitLog[]
+  researchProjects ResearchProject[]
+  roadmaps         Roadmap[]
+  notifications    Notification[]
+  dailyReviews     DailyReview[]
+  weeklyReviews    WeeklyReview[]
+  phoneLogs        PhoneLog[]
+  sleepLogs        SleepLog[]
+  dashboardWidgets DashboardWidget[]
+}
+
+model UserSettings {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Sleep settings
+  sleepStartTime String @default("01:00")
+  sleepEndTime   String @default("07:30")
+  sleepTarget    Float  @default(6.5)
+
+  // Phone settings
+  phoneLimit Int @default(90) // minutes
+
+  // Study preferences
+  defaultPomodoroWork  Int @default(25)
+  defaultPomodoroBreak Int @default(5)
+  focusModeEnabled     Boolean @default(true)
+
+  // Notifications
+  notificationsEnabled Boolean @default(true)
+  taskReminders        Boolean @default(true)
+  reminderMinutes      Int     @default(15)
+  quietHoursStart      String? @default("23:00")
+  quietHoursEnd        String? @default("08:00")
+
+  // Theme
+  theme String @default("dark") // "light" | "dark" | "system"
+
+  // Scoring weights
+  taskCompletionWeight Float @default(0.3)
+  focusTimeWeight      Float @default(0.25)
+  aiConsistencyWeight  Float @default(0.15)
+  researchWeight       Float @default(0.15)
+  sleepWeight          Float @default(0.08)
+  phoneWeight          Float @default(0.07)
+
+  // Weekly targets
+  weeklyStudyHoursTarget   Float @default(40)
+  weeklyAcademicHoursTarget Float @default(22)
+  weeklyAIHoursTarget      Float @default(12)
+  weeklyResearchHoursTarget Float @default(6)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum BlockType {
+  FIXED
+  FLEXIBLE
+}
+
+enum BlockCategory {
+  ACADEMIC
+  AI_ML
+  RESEARCH
+  PERSONAL
+  UNIVERSITY
+  SLEEP
+  MEAL
+  FRIENDS
+  EXERCISE
+  OTHER
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model ScheduleBlock {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  subject     String?
+  category    BlockCategory
+  type        BlockType
+  priority    Priority      @default(MEDIUM)
+
+  // Time
+  dayOfWeek  Int // 0 = Sunday, 6 = Saturday
+  startTime  String // HH:mm format
+  endTime    String // HH:mm format
+  duration   Int // minutes
+
+  // Repeat settings
+  recurring Boolean @default(true)
+
+  // Visual
+  color String? @default("#06b6d4")
+  icon  String?
+
+  // Task details
+  taskObjective String?
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks Task[]
+
+  @@index([userId, dayOfWeek])
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  PARTIALLY_COMPLETED
+  SKIPPED
+  MISSED
+  RESCHEDULED
+}
+
+model Task {
+  id              String  @id @default(cuid())
+  userId          String
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduleBlockId String?
+  scheduleBlock   ScheduleBlock? @relation(fields: [scheduleBlockId], references: [id], onDelete: SetNull)
+
+  title         String
+  description   String?
+  category      BlockCategory
+  priority      Priority      @default(MEDIUM)
+  status        TaskStatus    @default(PENDING)
+
+  // Time
+  date          DateTime
+  startTime     String
+  endTime       String
+  duration      Int // minutes
+  actualStartTime DateTime?
+  actualEndTime   DateTime?
+
+  // Completion
+  completedAt DateTime?
+  completionPercentage Int @default(0)
+
+  // Rescheduling
+  originalDate DateTime?
+  rescheduledReason String?
+
+  // Tracking
+  focusTimeMinutes Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studySessions StudySession[]
+
+  @@index([userId, date, status])
+}
+
+model Subject {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  code        String?
+  category    BlockCategory @default(ACADEMIC)
+  color       String        @default("#06b6d4")
+  icon        String?
+  description String?
+
+  // Progress
+  totalTopics      Int @default(0)
+  completedTopics  Int @default(0)
+  totalChapters    Int @default(0)
+  completedChapters Int @default(0)
+
+  topics Topic[]
+  chapters Chapter[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Chapter {
+  id        String  @id @default(cuid())
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  order       Int     @default(0)
+  completed   Boolean @default(false)
+
+  // Progress tracking
+  totalTopics      Int @default(0)
+  completedTopics  Int @default(0)
+  progress         Float @default(0) // percentage
+
+  // Content
+  topics       String  @default("[]") // JSON array of topic strings
+  subtopics    String  @default("[]") // JSON array of subtopic objects
+  objectives   String?
+  notes        String?
+
+  materials ChapterMaterial[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subjectId, order])
+}
+
+enum MaterialType {
+  PDF
+  SLIDE
+  NOTE
+  VIDEO
+  LINK
+  CODE
+  IMAGE
+  OTHER
+}
+
+model ChapterMaterial {
+  id        String   @id @default(cuid())
+  chapterId String
+  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  title       String
+  type        MaterialType
+  description String?
+  order       Int          @default(0)
+
+  // File info
+  fileUrl     String? // URL or file path
+  fileName    String?
+  fileSize    Int?    // in bytes
+  mimeType    String?
+
+  // External link
+  externalUrl String?
+
+  // Text content (for notes)
+  content     String?
+
+  // Metadata
+  tags        String  @default("[]") // JSON array
+  viewed      Boolean @default(false)
+  lastViewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([chapterId, order])
+}
+
+model Topic {
+  id        String  @id @default(cuid())
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  order       Int     @default(0)
+  completed   Boolean @default(false)
+
+  // Content
+  chapters    String  @default("[]")
+  labs        String  @default("[]")
+  assignments String  @default("[]")
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subjectId])
+}
+
+enum GoalType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  LONG_TERM
+}
+
+enum GoalCategory {
+  ACADEMIC
+  AI_ML
+  RESEARCH
+  PERSONAL
+  CAREER
+  HEALTH
+  HABIT
+}
+
+model Goal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  type        GoalType
+  category    GoalCategory
+  priority    Priority     @default(MEDIUM)
+
+  // Progress
+  targetValue     Float?
+  currentValue    Float    @default(0)
+  unit            String? // "hours", "tasks", "papers", etc.
+  progress        Float    @default(0) // percentage
+
+  // Time
+  startDate DateTime @default(now())
+  deadline  DateTime?
+
+  // Milestones
+  milestones String  @default("[]")
+
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, type, completed])
+}
+
+model StudySession {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId String?
+  task   Task?  @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  category  BlockCategory
+  subject   String?
+  title     String
+
+  startTime DateTime
+  endTime   DateTime?
+  duration  Int       @default(0) // minutes
+
+  // Focus mode
+  focusModeUsed Boolean @default(false)
+  pomodoroUsed  Boolean @default(false)
+  breaks        Int     @default(0)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, startTime])
+}
+
+enum HabitType {
+  SLEEP
+  PHONE
+  STUDY
+  AI
+  RESEARCH
+  PLANNING
+  REVISION
+  EXERCISE
+  READING
+  CUSTOM
+}
+
+model Habit {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  type        HabitType
+  description String?
+  icon        String?
+  color       String?
+
+  // Target
+  targetValue Float?
+  unit        String? // "minutes", "hours", "times", etc.
+
+  // Tracking
+  active Boolean @default(true)
+
+  logs HabitLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, active])
+}
+
+model HabitLog {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habitId String
+  habit   Habit  @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  date  DateTime
+  value Float // minutes, hours, count, etc.
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([habitId, date])
+  @@index([userId, date])
+}
+
+model ResearchProject {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  area        String? // e.g., "AI-Integrated Antenna Design"
+
+  // Progress
+  stage String @default("idea") // idea, literature, problem, dataset, experiment, result, paper
+
+  // Content
+  researchIdeas     String?
+  literatureReview  String?
+  problemStatement  String?
+  methodology       String?
+  futureWork        String?
+
+  papers       ResearchPaper[]
+  researchTasks ResearchTask[]
+
+  // Status
+  active      Boolean   @default(true)
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, active])
+}
+
+enum PaperStatus {
+  TO_READ
+  READING
+  READ
+  IMPORTANT
+  USED_IN_RESEARCH
+}
+
+model ResearchPaper {
+  id        String           @id @default(cuid())
+  projectId String
+  project   ResearchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  title    String
+  authors  String  @default("[]")
+  year     Int?
+  link     String?
+  topic    String?
+
+  // Content analysis
+  researchProblem  String?
+  dataset          String?
+  method           String?
+  model            String?
+  results          String?
+  limitations      String?
+  importantNotes   String?
+  myThoughts       String?
+  researchIdeas    String?
+
+  status PaperStatus @default(TO_READ)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, status])
+}
+
+enum ResearchTaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+model ResearchTask {
+  id        String          @id @default(cuid())
+  projectId String
+  project   ResearchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  status      ResearchTaskStatus @default(TODO)
+  priority    Priority           @default(MEDIUM)
+
+  order Int @default(0)
+
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, status])
+}
+
+model Roadmap {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String // e.g., "AI/ML Learning Path"
+  description String?
+  category    BlockCategory @default(AI_ML)
+
+  items RoadmapItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model RoadmapItem {
+  id        String  @id @default(cuid())
+  roadmapId String
+  roadmap   Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+
+  title       String // e.g., "Python", "Machine Learning"
+  description String?
+  order       Int     @default(0)
+
+  // Content
+  topics    String  @default("[]")
+  lessons   String  @default("[]")
+  projects  String  @default("[]")
+  resources String  @default("[]")
+  notes     String?
+
+  // Progress
+  completed          Boolean @default(false)
+  completionProgress Float   @default(0) // percentage
+
+  priority Priority  @default(MEDIUM)
+  deadline DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roadmapId, order])
+}
+
+enum NotificationType {
+  TASK_STARTED
+  TASK_ENDING
+  TASK_MISSED
+  UPCOMING_CLASS
+  RESEARCH_REMINDER
+  AI_MILESTONE
+  WEEKLY_REVIEW
+  PHONE_LIMIT
+  SLEEP_REMINDER
+  CUSTOM
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    NotificationType
+  title   String
+  message String
+  read    Boolean          @default(false)
+
+  // Interactive
+  actionRequired Boolean @default(false)
+  actionUrl      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, read, createdAt])
+}
+
+model DailyReview {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @unique
+
+  // Hours
+  totalStudyMinutes    Int @default(0)
+  academicMinutes      Int @default(0)
+  aiMinutes            Int @default(0)
+  researchMinutes      Int @default(0)
+
+  // Tasks
+  totalTasks      Int @default(0)
+  completedTasks  Int @default(0)
+  skippedTasks    Int @default(0)
+  missedTasks     Int @default(0)
+
+  // Habits
+  phoneMinutes Int @default(0)
+  sleepMinutes Int @default(0)
+
+  // Score
+  productivityScore Int @default(0) // 0-100
+
+  // Mission
+  missionCompleted Boolean @default(false)
+  missionScore     Int     @default(0)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+}
+
+model WeeklyReview {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart DateTime
+  weekEnd   DateTime
+
+  // Hours
+  totalStudyMinutes    Int @default(0)
+  academicMinutes      Int @default(0)
+  aiMinutes            Int @default(0)
+  researchMinutes      Int @default(0)
+
+  // Tasks
+  totalTasks      Int @default(0)
+  completedTasks  Int @default(0)
+  completionRate  Float @default(0)
+  skippedTasks    Int @default(0)
+  rescheduledTasks Int @default(0)
+
+  // Habits
+  avgPhoneMinutes Int @default(0)
+  avgSleepMinutes Int @default(0)
+
+  // Analysis
+  bestDay   String?
+  worstDay  String?
+  insights  String  @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, weekStart])
+}
+
+model PhoneLog {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @unique
+
+  minutes Int
+  notes   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+}
+
+model SleepLog {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @unique
+
+  sleepTime String // HH:mm
+  wakeTime  String // HH:mm
+  hours     Float
+  quality   Int? // 1-5 rating
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+}
+
+enum WidgetType {
+  CURRENT_TASK
+  COUNTDOWN
+  DAILY_PROGRESS
+  WEEKLY_PROGRESS
+  STUDY_HOURS
+  AI_PROGRESS
+  RESEARCH_PROGRESS
+  CALENDAR
+  HABIT_TRACKER
+  PHONE_USAGE
+  SLEEP
+  GOALS
+  NOTIFICATIONS
+  WEEKLY_CHART
+  QUICK_NOTES
+  TODAYS_MISSION
+}
+
+model DashboardWidget {
+  id     String     @id @default(cuid())
+  userId String
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    WidgetType
+  enabled Boolean    @default(true)
+  order   Int        @default(0)
+
+  // Layout
+  size String @default("medium") // "small", "medium", "large"
+
+  // Settings (JSON)
+  settings Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, enabled, order])
+}
