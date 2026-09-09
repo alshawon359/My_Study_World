@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId');
     const dateStr = searchParams.get('date');
 
+    console.log(`📥 GET tasks - userId: ${userId}, date: ${dateStr}`);
+
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
@@ -37,11 +39,15 @@ export async function GET(request: NextRequest) {
         },
       });
       
+      console.log(`📊 Total tasks for user: ${allTasks.length}`);
+      
       // Filter by comparing date strings (YYYY-MM-DD)
       tasks = allTasks.filter(task => {
         const taskDateStr = task.date.toISOString().split('T')[0];
         return taskDateStr === dateStr;
       });
+      
+      console.log(`✅ Tasks for date ${dateStr}: ${tasks.length}`);
     } else {
       tasks = await prisma.task.findMany({
         where: { userId },
@@ -60,12 +66,18 @@ export async function GET(request: NextRequest) {
           completionPercentage: true,
         },
       });
+      
+      console.log(`✅ All tasks for user: ${tasks.length}`);
     }
 
     return NextResponse.json(tasks);
-  } catch (error) {
-    console.error('Error fetching tasks:', error);
-    return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
+  } catch (error: any) {
+    console.error('❌ Error fetching tasks:', error);
+    console.error('Error details:', error.message);
+    return NextResponse.json({ 
+      error: 'Failed to fetch tasks',
+      details: error.message 
+    }, { status: 500 });
   }
 }
 
