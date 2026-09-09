@@ -46,21 +46,42 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       
-      // Parallel loading for faster performance
-      const [scheduleRes, tasksRes] = await Promise.all([
-        fetch(`/api/schedule?userId=${userId}&dayOfWeek=${getCurrentDayOfWeek()}`),
-        fetch(`/api/tasks?userId=${userId}&date=${getDateString()}`)
-      ]);
-
+      // Load schedule blocks first
+      const scheduleRes = await fetch(`/api/schedule?userId=${userId}&dayOfWeek=${getCurrentDayOfWeek()}`);
+      let scheduleData = [];
       if (scheduleRes.ok) {
-        const scheduleData = await scheduleRes.json();
+        scheduleData = await scheduleRes.json();
         setScheduleBlocks(scheduleData);
       }
 
+      // Load tasks
+      const tasksRes = await fetch(`/api/tasks?userId=${userId}&date=${getDateString()}`);
+      let tasksData = [];
       if (tasksRes.ok) {
-        const tasksData = await tasksRes.json();
-        setTodayTasks(tasksData);
+        tasksData = await tasksRes.json();
       }
+
+      // If no tasks but schedule blocks exist, generate tasks automatically
+      if (tasksData.length === 0 && scheduleData.length > 0) {
+        console.log('No tasks found, generating from schedule blocks...');
+        const generateRes = await fetch('/api/tasks/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, date: getDateString() }),
+        });
+
+        if (generateRes.ok) {
+          const generated = await generateRes.json();
+          tasksData = generated.tasks || [];
+          console.log(`✅ Generated ${tasksData.length} tasks`);
+          toast({
+            title: 'Tasks Generated',
+            description: `Created ${tasksData.length} tasks from your schedule`,
+          });
+        }
+      }
+
+      setTodayTasks(tasksData);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
