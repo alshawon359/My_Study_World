@@ -1,0 +1,11 @@
+*.md
+.git
+.vscode
+*.log
+test-db-connection.js
+*.js.map
+coverage
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
