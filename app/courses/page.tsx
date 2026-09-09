@@ -6,6 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   BookOpen,
   ChevronRight,
@@ -32,6 +36,13 @@ export default function CoursesPage() {
   const { toast } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    color: '#3b82f6',
+    description: '',
+  });
 
   const userId = 'cmtszibhe0000uzf04p06d1fe';
 
@@ -56,6 +67,53 @@ export default function CoursesPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateCourse = async () => {
+    if (!formData.name.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Course name is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/subjects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          ...formData,
+          category: 'ACADEMIC',
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: 'Success',
+          description: 'Course created successfully',
+        });
+        setIsDialogOpen(false);
+        setFormData({ name: '', code: '', color: '#3b82f6', description: '' });
+        await loadCourses();
+      } else {
+        const error = await response.json();
+        toast({
+          title: 'Error',
+          description: error.error || 'Failed to create course',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error creating course:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create course',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -176,7 +234,10 @@ export default function CoursesPage() {
           })}
 
           {/* Add New Course */}
-          <Card className="border-2 border-dashed cursor-pointer hover:border-primary hover:bg-primary/5 transition-all flex items-center justify-center min-h-[350px]">
+          <Card 
+            className="border-2 border-dashed cursor-pointer hover:border-primary hover:bg-primary/5 transition-all flex items-center justify-center min-h-[350px]"
+            onClick={() => setIsDialogOpen(true)}
+          >
             <div className="text-center p-6">
               <div className="bg-primary/10 rounded-full p-4 inline-block mb-4">
                 <Plus className="h-8 w-8 text-primary" />
@@ -188,6 +249,68 @@ export default function CoursesPage() {
             </div>
           </Card>
         </div>
+
+        {/* Create Course Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Course</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="name">Course Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g., Digital Image Processing"
+                />
+              </div>
+              <div>
+                <Label htmlFor="code">Course Code</Label>
+                <Input
+                  id="code"
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  placeholder="e.g., CSE401"
+                />
+              </div>
+              <div>
+                <Label htmlFor="color">Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="color"
+                    type="color"
+                    value={formData.color}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    className="w-20 h-10"
+                  />
+                  <Input
+                    value={formData.color}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    placeholder="#3b82f6"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Brief description of the course..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateCourse}>Create Course</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -37,6 +37,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('Received schedule data:', JSON.stringify(body, null, 2));
+    
     const { userId, ...data } = body;
 
     if (!userId) {
@@ -45,41 +47,64 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!data.title || !data.startTime || !data.endTime || data.dayOfWeek === undefined) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ 
+        error: 'Missing required fields',
+        missing: {
+          title: !data.title,
+          startTime: !data.startTime,
+          endTime: !data.endTime,
+          dayOfWeek: data.dayOfWeek === undefined
+        }
+      }, { status: 400 });
     }
 
-    // Clean data: remove empty strings, convert to null or omit
+    // Validate enums
+    if (!data.category || !data.type || !data.priority) {
+      return NextResponse.json({ 
+        error: 'Missing enum fields (category, type, or priority)',
+        received: { category: data.category, type: data.type, priority: data.priority }
+      }, { status: 400 });
+    }
+
+    // Validate duration
+    if (!data.duration || data.duration <= 0) {
+      return NextResponse.json({ error: 'Invalid duration' }, { status: 400 });
+    }
+
+    // Clean data: only include valid fields
     const cleanData: any = {
-      title: data.title,
+      title: String(data.title).trim(),
       category: data.category,
       type: data.type,
       priority: data.priority,
-      dayOfWeek: data.dayOfWeek,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      duration: data.duration,
-      recurring: data.recurring ?? true,
+      dayOfWeek: parseInt(String(data.dayOfWeek)),
+      startTime: String(data.startTime),
+      endTime: String(data.endTime),
+      duration: parseInt(String(data.duration)),
+      recurring: Boolean(data.recurring ?? true),
     };
 
     // Add optional fields only if they have values
-    if (data.description && data.description.trim()) {
-      cleanData.description = data.description.trim();
+    if (data.description && String(data.description).trim()) {
+      cleanData.description = String(data.description).trim();
     }
-    if (data.subject && data.subject.trim()) {
-      cleanData.subject = data.subject.trim();
+    if (data.subject && String(data.subject).trim()) {
+      cleanData.subject = String(data.subject).trim();
     }
-    if (data.taskObjective && data.taskObjective.trim()) {
-      cleanData.taskObjective = data.taskObjective.trim();
+    if (data.taskObjective && String(data.taskObjective).trim()) {
+      cleanData.taskObjective = String(data.taskObjective).trim();
     }
-    if (data.notes && data.notes.trim()) {
-      cleanData.notes = data.notes.trim();
+    if (data.notes && String(data.notes).trim()) {
+      cleanData.notes = String(data.notes).trim();
     }
     if (data.color) {
-      cleanData.color = data.color;
+      cleanData.color = String(data.color);
     }
     if (data.icon) {
-      cleanData.icon = data.icon;
+      cleanData.icon = String(data.icon);
     }
+
+    console.log('Clean data for Prisma:', JSON.stringify(cleanData, null, 2));
 
     const scheduleBlock = await prisma.scheduleBlock.create({
       data: {
@@ -91,8 +116,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(scheduleBlock);
   } catch (error: any) {
     console.error('Error creating schedule block:', error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
     return NextResponse.json(
-      { error: error.message || 'Failed to create schedule block' },
+      { 
+        error: error.message || 'Failed to create schedule block',
+        details: error.toString()
+      },
       { status: 500 }
     );
   }

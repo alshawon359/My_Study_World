@@ -57,6 +57,41 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    console.log('Creating subject:', JSON.stringify(body, null, 2));
+    
+    const { userId, name, code, color, description, category } = body;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    }
+
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: 'Subject name required' }, { status: 400 });
+    }
+
+    const subject = await prisma.subject.create({
+      data: {
+        userId,
+        name: name.trim(),
+        code: code?.trim() || null,
+        color: color || '#3b82f6',
+        description: description?.trim() || null,
+        category: category || 'ACADEMIC',
+      },
+    });
+
+    return NextResponse.json(subject);
+  } catch (error: any) {
+    console.error('Error creating subject:', error);
+    return NextResponse.json({ 
+      error: error.message || 'Failed to create subject' 
+    }, { status: 500 });
+  }
+}
+
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
@@ -75,5 +110,27 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('Error updating subject:', error);
     return NextResponse.json({ error: 'Failed to update subject' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Subject ID required' }, { status: 400 });
+    }
+
+    await prisma.subject.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting subject:', error);
+    return NextResponse.json({ 
+      error: error.message || 'Failed to delete subject' 
+    }, { status: 500 });
   }
 }
