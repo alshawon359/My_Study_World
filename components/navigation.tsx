@@ -43,10 +43,10 @@ export function Navigation() {
               <div className="bg-gradient-to-r from-teal-600 to-cyan-600 rounded-lg p-2">
                 <span className="text-white font-bold text-lg">MSW</span>
               </div>
-              <div>
-                <div className="font-bold text-lg">MY STUDY WORLD</div>
-                <div className="text-xs text-muted-foreground">
-                  Study. Build. Research. Become.
+              <div className="flex items-center gap-2">
+                <div className="font-bold text-lg whitespace-nowrap">MY STUDY WORLD</div>
+                <div className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">
+                  • Study. Build. Research. Become.
                 </div>
               </div>
             </Link>
