@@ -1,6 +1,59 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Simplified Master Timetable - Core blocks only (Academic/AI/Research)
+const coreSchedule = [
+  // Thursday (4) - Current day
+  { d: 4, t: 'Wake up', s: '07:30', e: '08:00', c: 'PERSONAL', p: 'LOW' },
+  { d: 4, t: 'Commute', s: '08:00', e: '08:40', c: 'PERSONAL', p: 'LOW' },
+  { d: 4, t: 'University', s: '09:00', e: '13:00', c: 'UNIVERSITY', p: 'HIGH' },
+  { d: 4, t: 'Lunch', s: '13:00', e: '14:00', c: 'PERSONAL', p: 'MEDIUM' },
+  { d: 4, t: 'Rest', s: '14:00', e: '15:00', c: 'PERSONAL', p: 'MEDIUM' },
+  { d: 4, t: 'Review', s: '15:00', e: '16:00', c: 'ACADEMIC', p: 'MEDIUM' },
+  { d: 4, t: 'Friends', s: '16:00', e: '22:00', c: 'PERSONAL', p: 'HIGH' },
+  { d: 4, t: 'Dinner', s: '22:00', e: '22:45', c: 'PERSONAL', p: 'LOW' },
+  { d: 4, t: 'ML Study', s: '22:45', e: '23:45', c: 'AI_ML', p: 'MEDIUM' },
+  { d: 4, t: 'Research', s: '00:05', e: '01:00', c: 'RESEARCH', p: 'MEDIUM' },
+  { d: 4, t: 'Sleep', s: '01:00', e: '07:30', c: 'SLEEP', p: 'HIGH' },
+];
+
+const colors: any = {
+  ACADEMIC: '#3b82f6', AI_ML: '#06b6d4', RESEARCH: '#8b5cf6',
+  UNIVERSITY: '#f59e0b', PERSONAL: '#10b981', SLEEP: '#64748b',
+};
+
+export async function GET() {
+  const userId = 'cmtszibhe0000uzf04p06d1fe';
+  
+  try {
+    // Quick delete and insert
+    await prisma.scheduleBlock.deleteMany({ where: { userId } });
+
+    for (const b of coreSchedule) {
+      const [sh, sm] = b.s.split(':').map(Number);
+      const [eh, em] = b.e.split(':').map(Number);
+      const dur = ((eh * 60 + em) - (sh * 60 + sm) + 1440) % 1440;
+      
+      await prisma.scheduleBlock.create({
+        data: {
+          userId, title: b.t, dayOfWeek: b.d,
+          startTime: b.s, endTime: b.e, duration: dur,
+          category: b.c, priority: b.p,
+          type: 'FLEXIBLE', recurring: true, color: colors[b.c],
+        },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      imported: coreSchedule.length,
+      next: 'Visit /api/force-sync',
+    });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 // Complete Master Timetable from Excel - All 7 days
 const masterSchedule = [
   // SUNDAY (0) - 13 blocks
