@@ -422,45 +422,42 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-4xl font-bold">
+        {/* Header - Compact */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">
               {getGreeting()}, Shawon 👋
             </h1>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+            <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
                 <span>{bdDateString}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                <span className="tabular-nums font-mono text-lg font-semibold text-primary">
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
+                <span className="tabular-nums font-mono text-base font-semibold text-primary">
                   {bdTimeString}
                 </span>
                 <span className="text-xs font-semibold text-primary">BD</span>
               </div>
             </div>
           </div>
-          <p className="text-lg text-muted-foreground">
-            Study. Build. Research. Become.
-          </p>
         </div>
 
 
 
-        {/* Generate Tasks Button if no tasks */}
+        {/* Generate Tasks Button if no tasks - Compact */}
         {todayTasks.length === 0 && !loading && (
-          <Card className="mb-6 border-2 border-primary/20 bg-primary/5">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Calendar className="h-16 w-16 text-primary mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold mb-2">No Tasks for Today</h3>
-              <p className="text-sm text-muted-foreground mb-4 text-center max-w-md">
+          <Card className="mb-4 border-2 border-primary/20 bg-primary/5">
+            <CardContent className="flex flex-col items-center justify-center py-6">
+              <Calendar className="h-12 w-12 text-primary mb-3 opacity-50" />
+              <h3 className="text-base font-semibold mb-1">No Tasks for Today</h3>
+              <p className="text-xs text-muted-foreground mb-3 text-center max-w-md">
                 Generate today's tasks from your Master Timetable schedule
               </p>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <Button
-                  size="lg"
+                  size="sm"
                   onClick={async () => {
                     try {
                       const res = await fetch('/api/tasks/generate', {
@@ -484,12 +481,12 @@ export default function DashboardPage() {
                     }
                   }}
                 >
-                  <Calendar className="mr-2 h-5 w-5" />
-                  Generate Today's Tasks
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Generate Tasks
                 </Button>
                 <Button
                   variant="outline"
-                  size="lg"
+                  size="sm"
                   onClick={loadData}
                 >
                   Refresh
@@ -499,9 +496,9 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Daily Status */}
+        {/* Daily Status - Compact */}
         {dailyStatus && (
-          <div className="mb-6">
+          <div className="mb-4">
             <StatusIndicator
               status={dailyStatus.status}
               message={dailyStatus.message}
@@ -511,14 +508,14 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Current & Upcoming Tasks */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Current Task */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Current Task - Moved Up */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Badge variant="default" className="text-sm px-3 py-1 animate-pulse">
+              <div className="flex items-center gap-2 mb-3">
+                <Badge variant="default" className="text-xs px-2.5 py-0.5 animate-pulse">
                   🔴 LIVE NOW
                 </Badge>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-xs text-muted-foreground font-mono">
                   {currentTimeStr}
                 </span>
               </div>
