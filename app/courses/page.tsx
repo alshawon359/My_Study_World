@@ -16,6 +16,7 @@ import {
   Plus,
   Layers,
   FileText,
+  Trash2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -117,6 +118,42 @@ export default function CoursesPage() {
     }
   };
 
+  const handleDeleteCourse = async (courseId: string, courseName: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+
+    if (!confirm(`Are you sure you want to delete "${courseName}"? This will also delete all chapters and materials associated with this course.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/subjects?id=${courseId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: 'Success',
+          description: 'Course deleted successfully',
+        });
+        await loadCourses();
+      } else {
+        const error = await response.json();
+        toast({
+          title: 'Error',
+          description: error.error || 'Failed to delete course',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete course',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -170,15 +207,26 @@ export default function CoursesPage() {
                         style={{ color: course.color }}
                       />
                     </div>
-                    <Badge
-                      variant="secondary"
-                      style={{
-                        backgroundColor: `${course.color}20`,
-                        color: course.color,
-                      }}
-                    >
-                      {course.code}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        style={{
+                          backgroundColor: `${course.color}20`,
+                          color: course.color,
+                        }}
+                      >
+                        {course.code}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => handleDeleteCourse(course.id, course.name, e)}
+                        title="Delete course"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <CardTitle className="text-xl">{course.name}</CardTitle>
                   {course.description && (
