@@ -11,7 +11,12 @@ export async function GET() {
     const dateStr = getBDDateString();
     const dayOfWeek = getBDDayOfWeek();
     
-    const result = {
+    const result: {
+      bdDate: string;
+      bdDay: number;
+      dayName: string;
+      steps: string[];
+    } = {
       bdDate: dateStr,
       bdDay: dayOfWeek,
       dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek],
