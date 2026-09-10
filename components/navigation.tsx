@@ -36,17 +36,17 @@ export function Navigation() {
   return (
     <>
       {/* Desktop Navigation */}
-      <nav className="hidden md:block fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b">
-        <div className="container mx-auto px-4">
+      <nav className="hidden lg:block fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b">
+        <div className="container mx-auto px-4 max-w-7xl">
           <div className="flex items-center justify-between h-16">
-            <Link href="/dashboard" className="flex items-center gap-2">
+            <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
               <div className="bg-gradient-to-r from-teal-600 to-cyan-600 rounded-lg p-2">
                 <span className="text-white font-bold text-lg">MSW</span>
               </div>
               <div className="font-bold text-lg whitespace-nowrap">MY STUDY WORLD</div>
             </Link>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap justify-end">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
@@ -56,12 +56,48 @@ export function Navigation() {
                       variant={isActive ? 'default' : 'ghost'}
                       size="sm"
                       className={cn(
-                        'gap-2',
+                        'gap-1.5 text-xs',
                         isActive && 'bg-primary text-primary-foreground'
                       )}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-3.5 w-3.5" />
                       {item.label}
+                    </Button>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Tablet Navigation - Icons Only */}
+      <nav className="hidden md:block lg:hidden fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
+              <div className="bg-gradient-to-r from-teal-600 to-cyan-600 rounded-lg p-2">
+                <span className="text-white font-bold">MSW</span>
+              </div>
+              <div className="font-bold whitespace-nowrap">MSW</div>
+            </Link>
+
+            <div className="flex items-center gap-0.5 overflow-x-auto">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link key={item.href} href={item.href}>
+                    <Button
+                      variant={isActive ? 'default' : 'ghost'}
+                      size="icon"
+                      className={cn(
+                        'h-9 w-9',
+                        isActive && 'bg-primary text-primary-foreground'
+                      )}
+                      title={item.label}
+                    >
+                      <Icon className="h-4 w-4" />
                     </Button>
                   </Link>
                 );
@@ -123,9 +159,9 @@ export function Navigation() {
       </nav>
 
       {/* Bottom Mobile Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-t">
-        <div className="grid grid-cols-5 gap-1 p-2">
-          {navItems.slice(0, 5).map((item) => {
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-t shadow-lg">
+        <div className="grid grid-cols-5 gap-0.5 p-1.5">
+          {[navItems[0], navItems[1], navItems[2], navItems[5], navItems[6]].map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
@@ -134,12 +170,12 @@ export function Navigation() {
                   variant={isActive ? 'default' : 'ghost'}
                   size="sm"
                   className={cn(
-                    'flex-col h-auto py-2 gap-1 w-full',
+                    'flex-col h-auto py-1.5 gap-0.5 w-full',
                     isActive && 'bg-primary text-primary-foreground'
                   )}
                 >
                   <Icon className="h-4 w-4" />
-                  <span className="text-xs">{item.label}</span>
+                  <span className="text-[10px] leading-tight">{item.label}</span>
                 </Button>
               </Link>
             );
