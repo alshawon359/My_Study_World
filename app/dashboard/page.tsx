@@ -24,10 +24,18 @@ export default function DashboardPage() {
 
   const userId = 'cmtszibhe0000uzf04p06d1fe'; // Shawon's user ID
 
-  // Update current time every second
+  // Get BD time for display
+  const getBDTimeForDisplay = () => {
+    const now = new Date();
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const bdTime = new Date(utcTime + (6 * 60 * 60 * 1000));
+    return bdTime;
+  };
+
+  // Update current time every second (for BD timezone)
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(new Date());
+      setCurrentTime(getBDTimeForDisplay());
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -400,7 +408,13 @@ export default function DashboardPage() {
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                <span>{formatDate(currentTime)}</span>
+                <span>{currentTime.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  timeZone: 'UTC',
+                })}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
@@ -410,7 +424,8 @@ export default function DashboardPage() {
                     minute: '2-digit',
                     second: '2-digit',
                     hour12: true,
-                  })}
+                    timeZone: 'UTC',
+                  })} BD
                 </span>
               </div>
             </div>
