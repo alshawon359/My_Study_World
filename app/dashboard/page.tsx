@@ -16,7 +16,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [bdTimeString, setBdTimeString] = useState('00:00:00');
+  const [bdDateString, setBdDateString] = useState('');
   const [scheduleBlocks, setScheduleBlocks] = useState<ScheduleBlock[]>([]);
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,19 +25,30 @@ export default function DashboardPage() {
 
   const userId = 'cmtszibhe0000uzf04p06d1fe'; // Shawon's user ID
 
-  // Get BD time for display
-  const getBDTimeForDisplay = () => {
-    const now = new Date();
-    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const bdTime = new Date(utcTime + (6 * 60 * 60 * 1000));
-    return bdTime;
-  };
-
-  // Update current time every second (for BD timezone)
+  // Update BD time every second
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(getBDTimeForDisplay());
-    }, 1000);
+    const updateBDTime = () => {
+      const now = new Date();
+      const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const bdTime = new Date(utcTime + (6 * 60 * 60 * 1000));
+      
+      const hours = String(bdTime.getUTCHours()).padStart(2, '0');
+      const minutes = String(bdTime.getUTCMinutes()).padStart(2, '0');
+      const seconds = String(bdTime.getUTCSeconds()).padStart(2, '0');
+      setBdTimeString(`${hours}:${minutes}:${seconds}`);
+      
+      const dateStr = bdTime.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'UTC',
+      });
+      setBdDateString(dateStr);
+    };
+    
+    updateBDTime(); // Initial call
+    const interval = setInterval(updateBDTime, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -408,20 +420,14 @@ export default function DashboardPage() {
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                <span>{currentTime.toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  timeZone: 'UTC',
-                })}</span>
+                <span>{bdDateString}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                <span className="tabular-nums font-mono text-lg font-semibold">
-                  {String(currentTime.getUTCHours()).padStart(2, '0')}:{String(currentTime.getUTCMinutes()).padStart(2, '0')}:{String(currentTime.getUTCSeconds()).padStart(2, '0')}
+                <span className="tabular-nums font-mono text-lg font-semibold text-primary">
+                  {bdTimeString}
                 </span>
-                <span className="text-xs">BD</span>
+                <span className="text-xs font-semibold text-primary">BD</span>
               </div>
             </div>
           </div>
