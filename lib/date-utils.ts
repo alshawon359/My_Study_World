@@ -5,15 +5,12 @@
 
 /**
  * Get current date in Bangladesh timezone
- * Manually calculates UTC+6 offset
+ * Direct UTC + 6 calculation (no getTimezoneOffset)
  */
 export function getBDDate(): Date {
   const now = new Date();
-  // Get UTC time in milliseconds
-  const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-  // Add 6 hours for Bangladesh (UTC+6)
-  const bdTime = new Date(utcTime + (6 * 60 * 60 * 1000));
-  return bdTime;
+  // Add 6 hours directly
+  return new Date(now.getTime() + (6 * 60 * 60 * 1000));
 }
 
 /**
@@ -37,11 +34,21 @@ export function getBDDateString(): string {
 
 /**
  * Get current time string in BD timezone (HH:MM)
+ * Direct UTC + 6 calculation
  */
 export function getBDTimeString(): string {
-  const bdDate = getBDDate();
-  const hours = String(bdDate.getUTCHours()).padStart(2, '0');
-  const minutes = String(bdDate.getUTCMinutes()).padStart(2, '0');
+  const now = new Date();
+  const utcHours = now.getUTCHours();
+  const utcMinutes = now.getUTCMinutes();
+  
+  // Add 6 hours
+  let bdHours = utcHours + 6;
+  if (bdHours >= 24) {
+    bdHours -= 24;
+  }
+  
+  const hours = String(bdHours).padStart(2, '0');
+  const minutes = String(utcMinutes).padStart(2, '0');
   return `${hours}:${minutes}`;
 }
 

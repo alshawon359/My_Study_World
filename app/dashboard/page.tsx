@@ -25,19 +25,30 @@ export default function DashboardPage() {
 
   const userId = 'cmtszibhe0000uzf04p06d1fe'; // Shawon's user ID
 
-  // Update BD time every second
+  // Update BD time every second (Direct UTC + 6 calculation)
   useEffect(() => {
     const updateBDTime = () => {
       const now = new Date();
-      const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-      const bdTime = new Date(utcTime + (6 * 60 * 60 * 1000));
       
-      const hours = String(bdTime.getUTCHours()).padStart(2, '0');
-      const minutes = String(bdTime.getUTCMinutes()).padStart(2, '0');
-      const seconds = String(bdTime.getUTCSeconds()).padStart(2, '0');
+      // Get UTC time directly
+      const utcHours = now.getUTCHours();
+      const utcMinutes = now.getUTCMinutes();
+      const utcSeconds = now.getUTCSeconds();
+      
+      // Add 6 hours for Bangladesh
+      let bdHours = utcHours + 6;
+      if (bdHours >= 24) {
+        bdHours -= 24;
+      }
+      
+      const hours = String(bdHours).padStart(2, '0');
+      const minutes = String(utcMinutes).padStart(2, '0');
+      const seconds = String(utcSeconds).padStart(2, '0');
       setBdTimeString(`${hours}:${minutes}:${seconds}`);
       
-      const dateStr = bdTime.toLocaleDateString('en-US', {
+      // For date, create a BD date object
+      const bdDate = new Date(now.getTime() + (6 * 60 * 60 * 1000));
+      const dateStr = bdDate.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
