@@ -13,6 +13,7 @@ import { ScheduleBlock, BlockCategory, Priority, BlockType } from '@prisma/clien
 import { Plus, Edit2, Trash2, Calendar, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getDayName } from '@/lib/utils';
+import { getBDDayOfWeek } from '@/lib/date-utils';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -33,7 +34,7 @@ const priorityOptions = [
 ];
 
 export default function SchedulePage() {
-  const [selectedDay, setSelectedDay] = useState(new Date().getDay());
+  const [selectedDay, setSelectedDay] = useState(getBDDayOfWeek()); // Use BD day
   const [scheduleBlocks, setScheduleBlocks] = useState<ScheduleBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -127,8 +128,8 @@ export default function SchedulePage() {
           });
           await loadSchedule();
           
-          // Sync tasks if updating today's schedule
-          const today = new Date().getDay();
+          // Sync tasks if updating today's schedule (use BD day)
+          const today = getBDDayOfWeek();
           if (editingBlock.dayOfWeek === today) {
             console.log('🔄 Syncing tasks after update...');
             try {
@@ -180,8 +181,8 @@ export default function SchedulePage() {
           });
           await loadSchedule();
           
-          // Sync tasks immediately for today
-          const today = new Date().getDay();
+          // Sync tasks immediately for today (use BD day)
+          const today = getBDDayOfWeek();
           if (selectedDay === today) {
             console.log('🔄 Syncing tasks for today...');
             try {
@@ -253,8 +254,8 @@ export default function SchedulePage() {
         });
         await loadSchedule();
         
-        // Sync tasks if deleting today's schedule
-        const today = new Date().getDay();
+        // Sync tasks if deleting today's schedule (use BD day)
+        const today = getBDDayOfWeek();
         if (block.dayOfWeek === today) {
           console.log('🔄 Syncing tasks after delete...');
           try {
