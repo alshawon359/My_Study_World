@@ -418,15 +418,10 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                <span className="tabular-nums font-mono">
-                  {currentTime.toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true,
-                    timeZone: 'UTC',
-                  })} BD
+                <span className="tabular-nums font-mono text-lg font-semibold">
+                  {String(currentTime.getUTCHours()).padStart(2, '0')}:{String(currentTime.getUTCMinutes()).padStart(2, '0')}:{String(currentTime.getUTCSeconds()).padStart(2, '0')}
                 </span>
+                <span className="text-xs">BD</span>
               </div>
             </div>
           </div>
