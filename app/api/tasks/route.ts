@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getDateString } from '@/lib/utils';
+import { getBDStartOfDay, getBDEndOfDay } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -20,9 +21,13 @@ export async function GET(request: NextRequest) {
     let tasks;
     
     if (dateStr) {
-      // Query by date range for accuracy
-      const startOfDay = new Date(dateStr + 'T00:00:00.000Z');
-      const endOfDay = new Date(dateStr + 'T23:59:59.999Z');
+      // Query by date range using BD timezone boundaries
+      const startOfDay = getBDStartOfDay(dateStr);
+      const endOfDay = getBDEndOfDay(dateStr);
+      
+      console.log(`🔍 Querying tasks for BD date ${dateStr}`);
+      console.log(`   Start: ${startOfDay.toISOString()}`);
+      console.log(`   End: ${endOfDay.toISOString()}`);
       
       tasks = await prisma.task.findMany({
         where: { 

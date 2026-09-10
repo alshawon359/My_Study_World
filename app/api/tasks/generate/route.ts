@@ -15,12 +15,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Use BD timezone for date calculation
-    const bdDate = date ? new Date(date + 'T00:00:00.000+06:00') : getBDDate();
-    const dayOfWeek = bdDate.getDay();
+    const bdDate = date ? getBDDate() : getBDDate(); // Always use getBDDate() for consistency
+    const dayOfWeek = bdDate.getUTCDay(); // CRITICAL FIX: Use getUTCDay() not getDay()
     const dateStr = date || getBDDateString();
     
     console.log(`📅 BD Time: ${bdDate.toISOString()}`);
-    console.log(`📅 Generating tasks for date: ${dateStr}, Day: ${dayOfWeek} (${getDayName(dayOfWeek)})`);
+    console.log(`📅 Generating tasks for date: ${dateStr}, Day: ${dayOfWeek} (${getDayName(dayOfWeek)}) [BD timezone]`);
 
     // Get schedule blocks for this day
     const scheduleBlocks = await prisma.scheduleBlock.findMany({

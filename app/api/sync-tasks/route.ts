@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getBDDateString } from '@/lib/date-utils';
 
 /**
- * Force task regeneration for today
+ * Force task regeneration for today (BD timezone)
  * Call this after creating/updating/deleting schedule blocks
  */
 export async function POST(request: NextRequest) {
@@ -12,9 +13,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = getBDDateString(); // Use BD date instead of UTC
     
-    console.log(`🔄 Syncing tasks for user ${userId}, date ${dateStr}`);
+    console.log(`🔄 Syncing tasks for user ${userId}, date ${dateStr} (BD time)`);
     
     // Call the generate API internally
     const generateRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/tasks/generate`, {
