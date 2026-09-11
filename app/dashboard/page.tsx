@@ -208,21 +208,19 @@ export default function DashboardPage() {
 
   // Auto-complete in-progress tasks when time expires
   useEffect(() => {
-    if (!currentTask || currentTask.status !== TaskStatus.IN_PROGRESS) return;
-
     const checkTaskCompletion = async () => {
       const currentTimeStr = getBDTimeString();
-      
-      // Check if current time has passed the task's end time
-      if (currentTimeStr >= currentTask.endTime) {
-        console.log(`⏰ Task "${currentTask.title}" time expired. Auto-completing...`);
-        
+      const expiredTasks = todayTasks.filter(
+        (task) => task.status === TaskStatus.IN_PROGRESS && currentTimeStr >= task.endTime
+      );
+
+      await Promise.all(expiredTasks.map(async (task) => {
         try {
           const response = await fetch('/api/tasks', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              id: currentTask.id,
+              id: task.id,
               status: TaskStatus.COMPLETED,
               actualEndTime: new Date().toISOString(),
               completionPercentage: 100,
@@ -231,18 +229,16 @@ export default function DashboardPage() {
 
           if (response.ok) {
             const updatedTask = await response.json();
-            setTodayTasks(tasks =>
-              tasks.map(t => (t.id === updatedTask.id ? updatedTask : t))
-            );
+            setTodayTasks((tasks) => tasks.map((item) => item.id === updatedTask.id ? updatedTask : item));
             toast({
               title: 'Task Auto-Completed! ⏰',
-              description: `Time's up! "${currentTask.title}" marked as completed`,
+              description: `Time's up! "${task.title}" marked as completed`,
             });
           }
         } catch (error) {
           console.error('Error auto-completing task:', error);
         }
-      }
+      }));
     };
 
     // Check every 5 seconds
@@ -252,7 +248,7 @@ export default function DashboardPage() {
     checkTaskCompletion();
 
     return () => clearInterval(interval);
-  }, [currentTask, toast]);
+  }, [todayTasks, toast]);
 
   // Helper function to get category color
   const getCategoryColor = (category: string) => {
@@ -574,6 +570,7 @@ export default function DashboardPage() {
                 onComplete={handleCompleteTask}
                 onSkip={handleSkipTask}
                 onExtend={handleExtendTask}
+                onTimeExpired={handleCompleteTask}
               />
             </div>
 

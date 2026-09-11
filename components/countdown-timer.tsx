@@ -6,10 +6,11 @@ import { formatCountdown } from '@/lib/utils';
 interface CountdownTimerProps {
   endTime: string;
   onComplete?: () => void;
+  isActive?: boolean;
   className?: string;
 }
 
-export function CountdownTimer({ endTime, onComplete, className }: CountdownTimerProps) {
+export function CountdownTimer({ endTime, onComplete, isActive = true, className }: CountdownTimerProps) {
   const [seconds, setSeconds] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
 
@@ -30,6 +31,12 @@ export function CountdownTimer({ endTime, onComplete, className }: CountdownTime
       return Math.max(0, remaining);
     };
 
+    if (!isActive) {
+      setSeconds(0);
+      setIsComplete(false);
+      return;
+    }
+
     // Initial calculation
     setSeconds(calculateRemaining());
 
@@ -45,7 +52,7 @@ export function CountdownTimer({ endTime, onComplete, className }: CountdownTime
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [endTime, onComplete, isComplete]);
+  }, [endTime, onComplete, isActive, isComplete]);
 
   return (
     <div className={className}>

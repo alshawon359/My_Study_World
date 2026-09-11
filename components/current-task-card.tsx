@@ -15,6 +15,7 @@ interface CurrentTaskCardProps {
   onComplete: () => void;
   onSkip: () => void;
   onExtend: () => void;
+  onTimeExpired: () => void;
 }
 
 export function CurrentTaskCard({
@@ -24,6 +25,7 @@ export function CurrentTaskCard({
   onComplete,
   onSkip,
   onExtend,
+  onTimeExpired,
 }: CurrentTaskCardProps) {
   const [showActions, setShowActions] = useState(false);
 
@@ -84,7 +86,11 @@ export function CurrentTaskCard({
           </div>
           <CountdownTimer
             endTime={task.endTime}
-            onComplete={() => setShowActions(true)}
+            isActive={isInProgress}
+            onComplete={() => {
+              setShowActions(true);
+              onTimeExpired();
+            }}
             className="text-primary"
           />
         </div>

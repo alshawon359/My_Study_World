@@ -186,7 +186,6 @@ export function Navigation() {
 
       {/* Spacer */}
       <div className="h-14" />
-      <div className="md:hidden h-14" />
     </>
   );
 }
