@@ -56,10 +56,14 @@ export function CountdownTimer({ endTime, onComplete, isActive = true, className
 
   return (
     <div className={className}>
-      <div className="text-4xl font-bold tabular-nums">
-        {formatCountdown(seconds)}
-      </div>
-      {seconds === 0 && (
+      {!isActive ? (
+        <div className="text-4xl font-bold">Task Active</div>
+      ) : (
+        <div className="text-4xl font-bold tabular-nums">
+          {formatCountdown(seconds)}
+        </div>
+      )}
+      {isActive && seconds === 0 && (
         <div className="text-sm text-muted-foreground mt-1">
           Time completed
         </div>
