@@ -9,8 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { upload } from '@vercel/blob/client';
 import {
-  BookOpen, CheckCircle2, Clock3, Database, Download, Edit, ExternalLink, Eye, File, FileImage,
+  BookOpen, CheckCircle2, Clock3, Download, Edit, ExternalLink, Eye, File, FileImage,
   FileText, Loader2, Plus, Presentation, Search, Sparkles, Trash2, Upload, X,
 } from 'lucide-react';
 
@@ -21,7 +22,8 @@ interface PaperMaterial {
   name: string;
   type: string;
   size: number;
-  dataUrl: string;
+  url?: string;
+  dataUrl?: string;
 }
 
 interface ResearchPaper {
@@ -64,7 +66,6 @@ interface PaperFormData {
 }
 
 const userId = 'cmtszibhe0000uzf04p06d1fe';
-const MAX_MATERIAL_SIZE = 5 * 1024 * 1024;
 const STATUS_OPTIONS: { value: PaperStatus; label: string; color: string }[] = [
   { value: 'TO_READ', label: 'To Read', color: 'bg-slate-700 text-slate-200' },
   { value: 'READING', label: 'Reading', color: 'bg-blue-500/20 text-blue-200' },
@@ -115,7 +116,7 @@ function PaperEditor({ formData, setFormData, onUpload, onRemoveMaterial, onSave
 }) {
   const set = (key: keyof PaperFormData, value: string | PaperStatus) => setFormData((current) => ({ ...current, [key]: value }));
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 font-semibold">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="md:col-span-2"><Label>Paper title *</Label><Input value={formData.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Machine learning for antenna optimization" /></div>
         <div><Label>Authors *</Label><Input value={formData.authors} onChange={(e) => set('authors', e.target.value)} placeholder="Author names" /></div>
@@ -134,7 +135,7 @@ function PaperEditor({ formData, setFormData, onUpload, onRemoveMaterial, onSave
       </div>
 
       <div className="rounded-2xl border border-dashed border-cyan-400/30 bg-cyan-400/[0.04] p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">Materials</p><p className="text-xs text-slate-500">PDF, PPTX, images and notes up to 5 MB each.</p></div><label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300"><Upload className="h-4 w-4" /> Add files<input type="file" className="hidden" accept=".pdf,.ppt,.pptx,image/*" multiple onChange={onUpload} /></label></div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">Materials</p><p className="text-xs text-slate-500">Upload PDFs, presentations, images, and supporting files to your library.</p></div><label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300"><Upload className="h-4 w-4" /> Add files<input type="file" className="hidden" accept=".pdf,.ppt,.pptx,image/*" multiple onChange={onUpload} /></label></div>
         {formData.materials.length > 0 && <div className="mt-4 space-y-2">{formData.materials.map((material) => <div key={material.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-100 px-3 py-2"><div className="flex min-w-0 items-center gap-2"><MaterialIcon type={material.type} /><span className="truncate text-sm">{material.name}</span><span className="text-xs text-slate-500">{(material.size / 1024 / 1024).toFixed(1)} MB</span></div><button type="button" onClick={() => onRemoveMaterial(material.id)} className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-900" aria-label={`Remove ${material.name}`}><X className="h-4 w-4" /></button></div>)}</div>}
       </div>
 
@@ -163,13 +164,25 @@ export default function ResearchPage() {
 
   useEffect(() => { void loadPapers(); }, []);
 
-  const handleUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    Array.from(event.target.files || []).forEach((file) => {
-      if (file.size > MAX_MATERIAL_SIZE) { alert(`${file.name} is larger than 5 MB.`); return; }
-      const reader = new FileReader();
-      reader.onload = () => setFormData((current) => ({ ...current, materials: [...current.materials, { id: `${Date.now()}-${file.name}`, name: file.name, type: file.type || 'application/octet-stream', size: file.size, dataUrl: String(reader.result) }] }));
-      reader.readAsDataURL(file);
-    });
+  const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setIsSaving(true);
+    try {
+      const uploaded = await Promise.all(files.map(async (file) => {
+        const blob = await upload(`research-materials/${Date.now()}-${file.name}`, file, {
+          access: 'public',
+          handleUploadUrl: '/api/research-materials/upload',
+        });
+        return { id: `${Date.now()}-${file.name}`, name: file.name, type: file.type || 'application/octet-stream', size: file.size, url: blob.url, dataUrl: blob.url };
+      }));
+      setFormData((current) => ({ ...current, materials: [...current.materials, ...uploaded] }));
+    } catch (error) {
+      console.error('Research material upload failed:', error);
+      alert('Upload failed. Please connect Vercel Blob storage first.');
+    } finally {
+      setIsSaving(false);
+    }
     event.target.value = '';
   };
 
@@ -199,10 +212,10 @@ export default function ResearchPage() {
     { label: 'Priority', value: papers.filter((paper) => ['IMPORTANT', 'USED_IN_RESEARCH'].includes(paper.status)).length, icon: Sparkles, color: 'text-fuchsia-300' },
   ];
 
-  if (loading) return <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-600"><Loader2 className="mr-3 h-6 w-6 animate-spin text-cyan-300" />Loading your research library...</div>;
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-slate-50 font-semibold text-slate-600"><Loader2 className="mr-3 h-6 w-6 animate-spin text-cyan-600" />Loading your research library...</div>;
 
-  return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50/50 to-white p-4 text-slate-900 sm:p-6"><div className="mx-auto max-w-7xl">
-    <section className="mb-7 rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl shadow-indigo-950/30 backdrop-blur-md md:p-8"><div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between"><div><div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300"><Sparkles className="h-4 w-4" /> Research library</div><div className="flex items-center gap-3"><div className="rounded-2xl bg-gradient-to-br from-cyan-300 to-fuchsia-400 p-3"><BookOpen className="h-8 w-8 text-slate-950" /></div><div><h1 className="text-3xl font-bold tracking-tight md:text-4xl">Research Papers</h1><p className="mt-1 text-sm text-slate-600 md:text-base">A focused home for your literature, insights, and evidence.</p></div></div></div><Dialog open={dialogMode === 'add'} onOpenChange={(open) => { if (!open) setDialogMode(null); }}><DialogTrigger asChild><Button onClick={() => { setFormData(emptyForm); setDialogMode('add'); }} className="h-11 rounded-xl bg-cyan-300 px-5 font-semibold text-slate-950 hover:bg-cyan-200"><Plus className="mr-2 h-4 w-4" />Add paper</Button></DialogTrigger><DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto border-slate-700 bg-white text-slate-900"><DialogHeader><DialogTitle className="text-xl">Add to your research library</DialogTitle></DialogHeader><PaperEditor formData={formData} setFormData={setFormData} onUpload={handleUpload} onRemoveMaterial={removeMaterial} onSave={savePaper} onCancel={() => setDialogMode(null)} isSaving={isSaving} saveLabel="Save paper" /></DialogContent></Dialog></div><div className="mt-7 flex flex-wrap items-center gap-3 text-sm text-slate-600"><span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-emerald-300"><Database className="h-4 w-4" />Database connected</span><span className="text-slate-500">â€¢</span><span>Synced across devices</span></div></section>
+  return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50/50 to-white p-4 font-semibold text-slate-900 sm:p-6"><div className="mx-auto max-w-7xl">
+    <section className="mb-7 rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl shadow-indigo-950/30 backdrop-blur-md md:p-8"><div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between"><div><div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-cyan-700"><Sparkles className="h-4 w-4" /> Research library</div><div className="flex items-center gap-3"><div className="rounded-2xl bg-gradient-to-br from-cyan-300 to-fuchsia-400 p-3"><BookOpen className="h-8 w-8 text-slate-950" /></div><div><h1 className="text-3xl font-bold tracking-tight md:text-4xl">Research Papers</h1><p className="mt-1 text-sm font-semibold text-slate-600 md:text-base">A focused home for your literature, insights, and evidence.</p></div></div></div><Dialog open={dialogMode === 'add'} onOpenChange={(open) => { if (!open) setDialogMode(null); }}><DialogTrigger asChild><Button onClick={() => { setFormData(emptyForm); setDialogMode('add'); }} className="h-11 rounded-xl bg-cyan-300 px-5 font-bold text-slate-950 hover:bg-cyan-200"><Plus className="mr-2 h-4 w-4" />Add paper</Button></DialogTrigger><DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto border-slate-700 bg-white text-slate-900"><DialogHeader><DialogTitle className="text-xl">Add to your research library</DialogTitle></DialogHeader><PaperEditor formData={formData} setFormData={setFormData} onUpload={handleUpload} onRemoveMaterial={removeMaterial} onSave={savePaper} onCancel={() => setDialogMode(null)} isSaving={isSaving} saveLabel="Save paper" /></DialogContent></Dialog></div></section>
     <div className="mb-7 grid grid-cols-2 gap-3 md:grid-cols-4">{metrics.map(({ label, value, icon: Icon, color }) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-center justify-between"><span className="text-xs font-medium uppercase tracking-wider text-slate-500">{label}</span><Icon className={`h-4 w-4 ${color}`} /></div><div className="mt-3 text-3xl font-bold">{value}</div></div>)}</div>
     <div className="mb-7 grid gap-3 rounded-2xl border border-slate-200 bg-slate-100 p-3 md:grid-cols-[1fr_220px]"><div className="relative"><Search className="absolute left-3 top-3 h-5 w-5 text-slate-500" /><Input placeholder="Search title, author, or topic..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-11 border-slate-200 bg-white/[0.08] pl-10 text-slate-900 placeholder:text-slate-500" /></div><Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="h-11 border-slate-200 bg-white/[0.08] text-slate-900"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">All statuses</SelectItem>{STATUS_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></div>
     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">{filteredPapers.length === 0 ? <div className="col-span-full rounded-3xl border border-dashed border-slate-300 bg-slate-50 py-16 text-center"><FileText className="mx-auto mb-4 h-12 w-12 text-slate-600" /><p className="text-lg font-semibold text-slate-200">No papers match this view</p><p className="mt-1 text-sm text-slate-500">Add a paper or adjust your search to continue.</p></div> : filteredPapers.map((paper) => { const status = statusLabel(paper.status); const materials = parseMaterials(paper.materials); return <Card key={paper.id} onClick={() => openPaper(paper)} className="group cursor-pointer rounded-2xl border-slate-200 bg-white shadow-xl shadow-slate-950/20 transition-all hover:-translate-y-1 hover:border-cyan-400/50 hover:bg-white/[0.09]"><CardHeader><div className="flex items-start justify-between gap-3"><div className="min-w-0"><CardTitle className="line-clamp-2 text-lg text-slate-900">{paper.title}</CardTitle><p className="mt-1 line-clamp-1 text-sm text-slate-500">{paper.authors}</p></div>{status && <Badge className={`shrink-0 border-0 ${status.color}`}>{status.label}</Badge>}</div></CardHeader><CardContent><div className="space-y-3 text-sm"><div className="flex flex-wrap gap-2 text-slate-500">{paper.year && <span>{paper.year}</span>}{paper.topic && <span className="rounded-full bg-white/10 px-2 py-0.5">{paper.topic}</span>}{materials.length > 0 && <span className="inline-flex items-center gap-1 text-cyan-300"><File className="h-3 w-3" />{materials.length} material{materials.length > 1 ? 's' : ''}</span>}</div>{paper.researchProblem && <p className="line-clamp-2 text-slate-600">{paper.researchProblem}</p>}<div className="flex items-center justify-between border-t border-slate-200 pt-3 text-xs text-slate-500"><span>Open paper details</span><Eye className="h-4 w-4 text-cyan-300" /></div></div></CardContent></Card>; })}</div>
