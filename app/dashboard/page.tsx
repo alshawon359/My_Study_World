@@ -206,6 +206,54 @@ export default function DashboardPage() {
   const totalTasks = todayTasks.length;
   const todayProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
+  // Auto-complete in-progress tasks when time expires
+  useEffect(() => {
+    if (!currentTask || currentTask.status !== TaskStatus.IN_PROGRESS) return;
+
+    const checkTaskCompletion = async () => {
+      const currentTimeStr = getBDTimeString();
+      
+      // Check if current time has passed the task's end time
+      if (currentTimeStr >= currentTask.endTime) {
+        console.log(`⏰ Task "${currentTask.title}" time expired. Auto-completing...`);
+        
+        try {
+          const response = await fetch('/api/tasks', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: currentTask.id,
+              status: TaskStatus.COMPLETED,
+              actualEndTime: new Date().toISOString(),
+              completionPercentage: 100,
+            }),
+          });
+
+          if (response.ok) {
+            const updatedTask = await response.json();
+            setTodayTasks(tasks =>
+              tasks.map(t => (t.id === updatedTask.id ? updatedTask : t))
+            );
+            toast({
+              title: 'Task Auto-Completed! ⏰',
+              description: `Time's up! "${currentTask.title}" marked as completed`,
+            });
+          }
+        } catch (error) {
+          console.error('Error auto-completing task:', error);
+        }
+      }
+    };
+
+    // Check every 5 seconds
+    const interval = setInterval(checkTaskCompletion, 5000);
+    
+    // Also check immediately
+    checkTaskCompletion();
+
+    return () => clearInterval(interval);
+  }, [currentTask, toast]);
+
   // Helper function to get category color
   const getCategoryColor = (category: string) => {
     const colorMap: { [key: string]: string } = {
