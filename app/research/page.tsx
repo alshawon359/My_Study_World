@@ -100,73 +100,96 @@ export default function ResearchPage() {
     notes: '',
   });
 
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const userId = 'cmtszibhe0000uzf04p06d1fe'; // Shawon's user ID
 
   useEffect(() => {
     loadPapers();
-    
-    // Show warning about local storage
-    const hasSeenWarning = sessionStorage.getItem('researchWarningShown');
-    if (!hasSeenWarning && typeof window !== 'undefined') {
-      setTimeout(() => {
-        alert('⚠️ Important: Research papers are currently stored locally in your browser only.\n\nThis means:\n• Data will NOT sync across different devices/browsers\n• Clearing browser data will delete all papers\n• Use the same browser/device to access your data\n\nDatabase sync coming soon!');
-        sessionStorage.setItem('researchWarningShown', 'true');
-      }, 1000);
-    }
   }, []);
 
-  const loadPapers = () => {
-    const saved = localStorage.getItem('researchPapers');
-    if (saved) {
-      setPapers(JSON.parse(saved));
+  const loadPapers = async () => {
+    try {
+      const response = await fetch(`/api/research-papers?userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Parse materials JSON string
+        const parsedData = data.map((p: any) => ({
+          ...p,
+          materials: p.materials ? JSON.parse(p.materials) : [],
+        }));
+        setPapers(parsedData);
+      }
+    } catch (error) {
+      console.error('Error loading papers:', error);
     }
   };
 
-  const savePapers = (updatedPapers: ResearchPaper[]) => {
-    localStorage.setItem('researchPapers', JSON.stringify(updatedPapers));
+  const savePapers = async (updatedPapers: ResearchPaper[]) => {
+    // This function is no longer needed - we save individually
     setPapers(updatedPapers);
   };
 
-  const handleAddPaper = () => {
+  const handleAddPaper = async () => {
     if (!formData.title) {
       alert('Please enter a paper title');
       return;
     }
 
-    const newPaper: ResearchPaper = {
-      id: Date.now().toString(),
-      ...formData,
-      researchProblem: '',
-      dataset: '',
-      method: '',
-      model: '',
-      results: '',
-      limitations: '',
-      importantNotes: '',
-      myThoughts: '',
-      researchIdeas: '',
-      materials: [],
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const materialsData: PaperMaterial[] = [];
 
-    // Add uploaded files as materials
-    if (uploadedFiles.length > 0) {
-      uploadedFiles.forEach((file) => {
-        const fileType = file.type.includes('pdf') ? 'pdf' 
-          : file.type.includes('presentation') || file.type.includes('ppt') ? 'slide'
-          : file.type.includes('image') ? 'image'
-          : 'link';
-        
-        // Create a local URL for the file
-        const fileUrl = URL.createObjectURL(file);
-        
-        const material: PaperMaterial = {
-          id: Date.now().toString() + Math.random(),
-          type: fileType,
-          title: file.name,
-          url: fileUrl,
-          notes: `Uploaded file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
-          addedAt: new Date().toISOString(),
+      // Add uploaded files as materials
+      if (uploadedFiles.length > 0) {
+        uploadedFiles.forEach((file) => {
+          const fileType = file.type.includes('pdf') ? 'pdf' 
+            : file.type.includes('presentation') || file.type.includes('ppt') ? 'slide'
+            : file.type.includes('image') ? 'image'
+            : 'link';
+          
+          const fileUrl = URL.createObjectURL(file);
+          
+          const material: PaperMaterial = {
+            id: Date.now().toString() + Math.random(),
+            type: fileType,
+            title: file.name,
+            url: fileUrl,
+            notes: `Uploaded file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
+            addedAt: new Date().toISOString(),
+          };
+          materialsData.push(material);
+        });
+      }
+
+      const response = await fetch('/api/research-papers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          ...formData,
+          researchProblem: '',
+          dataset: '',
+          method: '',
+          model: '',
+          results: '',
+          limitations: '',
+          importantNotes: '',
+          myThoughts: '',
+          researchIdeas: '',
+          materials: JSON.stringify(materialsData),
+        }),
+      });
+
+      if (response.ok) {
+        await loadPapers();
+        setFormData({ title: '', authors: '', year: '', link: '', topic: '', status: 'TO_READ' });
+        setUploadedFiles([]);
+        setIsAddingPaper(false);
+        alert('Paper added successfully!');
+      }
+    } catch (error) {
+      console.error('Error adding paper:', error);
+      alert('Failed to add paper');
+    }
+  };
         };
         
         newPaper.materials.push(material);
