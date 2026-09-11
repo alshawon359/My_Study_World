@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
         completed: data.completed || false,
         resources: data.resources || null,
         videoLinks: data.videoLinks ? JSON.stringify(data.videoLinks) : '[]',
+        subtopics: data.subtopics ? JSON.stringify(data.subtopics) : '[]',
       },
     });
 
@@ -54,6 +55,7 @@ export async function PUT(request: NextRequest) {
     if (data.completed !== undefined) updateData.completed = data.completed;
     if (data.resources !== undefined) updateData.resources = data.resources;
     if (data.videoLinks !== undefined) updateData.videoLinks = JSON.stringify(data.videoLinks);
+    if (data.subtopics !== undefined) updateData.subtopics = JSON.stringify(data.subtopics);
 
     const topic = await prisma.aIRoadmapTopic.update({
       where: { id },

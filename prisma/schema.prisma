@@ -838,6 +838,7 @@ model AIRoadmapTopic {
   completed     Boolean @default(false)
   resources     String?
   videoLinks    String  @default("[]") // JSON array of video URLs
+  subtopics     String  @default("[]") // JSON array of subtopic objects
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

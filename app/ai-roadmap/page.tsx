@@ -1,530 +1,108 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import {
-  Brain,
-  CheckCircle2,
-  Circle,
-  Plus,
-  Edit,
-  Trash2,
-  PlayCircle,
-  Video,
-  Link2,
-  Save,
-  X,
-  Award,
-  Clock,
-  Target,
-  Database,
-  Loader2,
-  AlertCircle,
+  ArrowDown, ArrowUp, BookOpen, Brain, Check, CheckCircle2, Circle, Clock3, Database,
+  ExternalLink, FileText, Layers3, Link2, ListChecks, Loader2, Pencil, Plus, Sparkles, Trash2, Video,
 } from 'lucide-react';
 
-interface Topic {
-  id: string;
-  levelId: string;
-  name: string;
-  estimatedTime: string | null;
-  completed: boolean;
-  videoLinks: string;
-  resources: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+type Subtopic = { id: string; name: string; completed: boolean };
+type Topic = { id: string; levelId: string; name: string; estimatedTime: string | null; completed: boolean; videoLinks: string; resources: string | null; subtopics: string };
+type Level = { id: string; userId: string; title: string; description: string | null; estimatedWeeks: string | null; status: string; order: number; topics: Topic[] };
+type LevelForm = { title: string; description: string; estimatedWeeks: string };
+type TopicForm = { name: string; estimatedTime: string; resources: string; videoLinks: string; subtopics: string };
 
-interface Level {
-  id: string;
-  userId: string;
-  title: string;
-  description: string | null;
-  estimatedWeeks: string | null;
-  topics: Topic[];
-  status: string;
-  order: number;
-  createdAt: string;
-  updatedAt: string;
-}
+const userId = 'cmtszibhe0000uzf04p06d1fe';
+const emptyLevel: LevelForm = { title: '', description: '', estimatedWeeks: '' };
+const emptyTopic: TopicForm = { name: '', estimatedTime: '', resources: '', videoLinks: '', subtopics: '' };
 
-const userId = 'cmtszibhe0000uzf04p06d1fe'; // Shawon's user ID
+const readJson = <T,>(value: string | null | undefined, fallback: T): T => {
+  try { const parsed = JSON.parse(value || ''); return parsed ?? fallback; } catch { return fallback; }
+};
+const getSubtopics = (topic: Topic): Subtopic[] => readJson(topic.subtopics, []);
+const getLinks = (topic: Topic): string[] => readJson(topic.videoLinks, []);
+const levelStats = (level: Level) => {
+  const subtopics = level.topics.flatMap(getSubtopics);
+  const total = level.topics.length + subtopics.length;
+  const completed = level.topics.filter((topic) => topic.completed).length + subtopics.filter((item) => item.completed).length;
+  return { total, completed, percent: total ? Math.round((completed / total) * 100) : 0, subtopics };
+};
 
 export default function AIRoadmapPage() {
   const [levels, setLevels] = useState<Level[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  
-  const [isAddingLevel, setIsAddingLevel] = useState(false);
-  const [editingLevel, setEditingLevel] = useState<Level | null>(null);
-  const [isAddingTopic, setIsAddingTopic] = useState(false);
-  const [addingTopicToLevelId, setAddingTopicToLevelId] = useState<string | null>(null);
-
-  // Form states
-  const [levelForm, setLevelForm] = useState({
-    title: '',
-    description: '',
-    estimatedWeeks: '',
-  });
-
-  const [topicForm, setTopicForm] = useState({
-    name: '',
-    estimatedTime: '',
-  });
-
-  // Load levels on mount
-  useEffect(() => {
-    loadLevels();
-  }, []);
+  const [saving, setSaving] = useState(false);
+  const [levelForm, setLevelForm] = useState<LevelForm>(emptyLevel);
+  const [topicForm, setTopicForm] = useState<TopicForm>(emptyTopic);
+  const [levelDialog, setLevelDialog] = useState(false);
+  const [topicDialog, setTopicDialog] = useState(false);
+  const [editingLevelId, setEditingLevelId] = useState<string | null>(null);
+  const [topicLevelId, setTopicLevelId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const loadLevels = async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/ai-roadmap?userId=${userId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setLevels(data.sort((a: Level, b: Level) => a.order - b.order));
-      }
-    } catch (error) {
-      console.error('❌ Error loading AI roadmap levels:', error);
-    } finally {
-      setLoading(false);
-    }
+      if (response.ok) setLevels((await response.json()).sort((a: Level, b: Level) => a.order - b.order));
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { void loadLevels(); }, []);
+
+  const saveLevel = async () => {
+    if (!levelForm.title.trim()) return alert('Please enter a level title.');
+    setSaving(true);
+    const body = { userId, ...levelForm, status: 'not-started', order: editingLevelId ? undefined : levels.length };
+    const response = await fetch('/api/ai-roadmap', { method: editingLevelId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editingLevelId ? { id: editingLevelId, ...body } : body) });
+    if (response.ok) { const level = await response.json(); setLevels((current) => editingLevelId ? current.map((item) => item.id === level.id ? { ...item, ...level } : item) : [...current, level]); setLevelForm(emptyLevel); setEditingLevelId(null); setLevelDialog(false); }
+    setSaving(false);
   };
 
-  const handleAddLevel = async () => {
-    if (!levelForm.title) {
-      alert('Please enter a level title');
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      const response = await fetch('/api/ai-roadmap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          title: levelForm.title,
-          description: levelForm.description || null,
-          estimatedWeeks: levelForm.estimatedWeeks || null,
-          status: 'not-started',
-          order: levels.length,
-        }),
-      });
-
-      if (response.ok) {
-        const newLevel = await response.json();
-        setLevels([...levels, newLevel]);
-        setLevelForm({ title: '', description: '', estimatedWeeks: '' });
-        setIsAddingLevel(false);
-      }
-    } catch (error) {
-      console.error('❌ Error adding level:', error);
-      alert('Error adding level');
-    } finally {
-      setIsSaving(false);
-    }
+  const deleteLevel = async (id: string) => {
+    if (!confirm('Delete this level and all its topics?')) return;
+    if ((await fetch(`/api/ai-roadmap?id=${id}`, { method: 'DELETE' })).ok) setLevels((current) => current.filter((level) => level.id !== id));
   };
 
-  const handleUpdateLevel = async (level: Level) => {
-    try {
-      setIsSaving(true);
-      const response = await fetch('/api/ai-roadmap', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: level.id,
-          title: level.title,
-          description: level.description,
-          estimatedWeeks: level.estimatedWeeks,
-          status: level.status,
-          order: level.order,
-        }),
-      });
-
-      if (response.ok) {
-        const updatedLevel = await response.json();
-        setLevels(levels.map(l => l.id === updatedLevel.id ? updatedLevel : l));
-      }
-    } catch (error) {
-      console.error('❌ Error updating level:', error);
-      alert('Error updating level');
-    } finally {
-      setIsSaving(false);
-    }
+  const saveTopic = async () => {
+    if (!topicForm.name.trim() || !topicLevelId) return alert('Please enter a topic name.');
+    setSaving(true);
+    const subtopics = topicForm.subtopics.split('\n').map((name) => name.trim()).filter(Boolean).map((name, index) => ({ id: `${Date.now()}-${index}`, name, completed: false }));
+    const videoLinks = topicForm.videoLinks.split('\n').map((link) => link.trim()).filter(Boolean);
+    const response = await fetch('/api/ai-roadmap/topics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ levelId: topicLevelId, name: topicForm.name, estimatedTime: topicForm.estimatedTime || null, resources: topicForm.resources || null, videoLinks, subtopics }) });
+    if (response.ok) { const topic = await response.json(); setLevels((current) => current.map((level) => level.id === topicLevelId ? { ...level, topics: [...level.topics, topic] } : level)); setTopicForm(emptyTopic); setTopicDialog(false); setTopicLevelId(null); }
+    setSaving(false);
   };
 
-  const handleDeleteLevel = async (id: string) => {
-    if (!confirm('Are you sure? This will delete all topics in this level')) return;
-
-    try {
-      const response = await fetch(`/api/ai-roadmap?id=${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        setLevels(levels.filter(l => l.id !== id));
-      }
-    } catch (error) {
-      console.error('❌ Error deleting level:', error);
-      alert('Error deleting level');
-    }
+  const updateTopic = async (topic: Topic, patch: { name?: string; estimatedTime?: string | null; completed?: boolean; resources?: string | null; subtopics?: Subtopic[]; videoLinks?: string[] }) => {
+    const response = await fetch('/api/ai-roadmap/topics', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: topic.id, ...patch }) });
+    if (response.ok) { const updated = await response.json(); setLevels((current) => current.map((level) => ({ ...level, topics: level.topics.map((item) => item.id === updated.id ? updated : item) }))); }
   };
 
-  const handleAddTopic = async (levelId: string) => {
-    if (!topicForm.name) {
-      alert('Please enter a topic name');
-      return;
-    }
+  const toggleTopic = (topic: Topic) => void updateTopic(topic, { completed: !topic.completed });
+  const toggleSubtopic = (topic: Topic, subtopicId: string) => void updateTopic(topic, { subtopics: getSubtopics(topic).map((item) => item.id === subtopicId ? { ...item, completed: !item.completed } : item) });
+  const deleteTopic = async (id: string) => { if (!confirm('Delete this topic?')) return; if ((await fetch(`/api/ai-roadmap/topics?id=${id}`, { method: 'DELETE' })).ok) setLevels((current) => current.map((level) => ({ ...level, topics: level.topics.filter((topic) => topic.id !== id) }))); };
+  const openAddTopic = (levelId: string) => { setTopicLevelId(levelId); setTopicForm(emptyTopic); setTopicDialog(true); };
+  const openEditLevel = (level: Level) => { setEditingLevelId(level.id); setLevelForm({ title: level.title, description: level.description || '', estimatedWeeks: level.estimatedWeeks || '' }); setLevelDialog(true); };
+  const moveLevel = async (level: Level, direction: -1 | 1) => { const target = levels.find((item) => item.order === level.order + direction); if (!target) return; await Promise.all([fetch('/api/ai-roadmap', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: level.id, order: target.order }) }), fetch('/api/ai-roadmap', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: target.id, order: level.order }) })]); void loadLevels(); };
 
-    try {
-      setIsSaving(true);
-      const response = await fetch('/api/ai-roadmap/topics', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          levelId,
-          name: topicForm.name,
-          estimatedTime: topicForm.estimatedTime || null,
-          completed: false,
-          videoLinks: [],
-        }),
-      });
+  const overall = levels.reduce((acc, level) => { const stats = levelStats(level); return { total: acc.total + stats.total, completed: acc.completed + stats.completed }; }, { total: 0, completed: 0 });
+  const overallPercent = overall.total ? Math.round((overall.completed / overall.total) * 100) : 0;
 
-      if (response.ok) {
-        const newTopic = await response.json();
-        setLevels(levels.map(l => 
-          l.id === levelId ? { ...l, topics: [...l.topics, newTopic] } : l
-        ));
-        setTopicForm({ name: '', estimatedTime: '' });
-        setIsAddingTopic(false);
-        setAddingTopicToLevelId(null);
-      }
-    } catch (error) {
-      console.error('❌ Error adding topic:', error);
-      alert('Error adding topic');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-600"><Loader2 className="mr-3 h-6 w-6 animate-spin text-cyan-600" />Loading your roadmap...</div>;
 
-  const handleToggleTopic = async (topic: Topic) => {
-    try {
-      const response = await fetch('/api/ai-roadmap/topics', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: topic.id,
-          completed: !topic.completed,
-        }),
-      });
+  return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50/50 to-white px-4 py-6 text-slate-900 sm:px-6 lg:py-8"><div className="mx-auto max-w-7xl">
+    <section className="mb-7 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="flex flex-col gap-6 p-6 md:flex-row md:items-end md:justify-between md:p-8"><div><div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-cyan-700"><Sparkles className="h-4 w-4" /> Personal learning system</div><div className="flex items-center gap-3"><div className="rounded-2xl bg-slate-950 p-3 shadow-lg"><Brain className="h-8 w-8 text-cyan-300" /></div><div><h1 className="text-3xl font-bold tracking-tight md:text-4xl">AI / ML Roadmap</h1><p className="mt-1 max-w-xl text-sm text-slate-500 md:text-base">Build a deliberate path from fundamentals to research-ready fluency.</p></div></div></div><Dialog open={levelDialog} onOpenChange={setLevelDialog}><DialogTrigger asChild><Button onClick={() => { setEditingLevelId(null); setLevelForm(emptyLevel); }} className="h-11 rounded-xl bg-slate-950 px-5 text-white hover:bg-slate-800"><Plus className="mr-2 h-4 w-4" />Add level</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>{editingLevelId ? 'Edit level' : 'Create a learning level'}</DialogTitle></DialogHeader><div className="space-y-4"><div><Label>Level title *</Label><Input value={levelForm.title} onChange={(e) => setLevelForm({ ...levelForm, title: e.target.value })} placeholder="Foundations, Deep Learning..." /></div><div><Label>Description</Label><Textarea value={levelForm.description} onChange={(e) => setLevelForm({ ...levelForm, description: e.target.value })} rows={3} /></div><div><Label>Estimated duration</Label><Input value={levelForm.estimatedWeeks} onChange={(e) => setLevelForm({ ...levelForm, estimatedWeeks: e.target.value })} placeholder="4 weeks" /></div><Button onClick={saveLevel} disabled={saving} className="w-full">{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}{editingLevelId ? 'Save changes' : 'Create level'}</Button></div></DialogContent></Dialog></div><div className="flex flex-wrap items-center gap-3 border-t border-slate-100 px-6 py-4 text-sm text-slate-500 md:px-8"><span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 font-medium text-emerald-700"><Database className="h-4 w-4" />Database connected</span><span>â€¢</span><span>{levels.length} levels</span><span>â€¢</span><span>{overall.completed} of {overall.total} learning items complete</span></div></section>
+    <section className="mb-7 grid gap-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-[1fr_280px] md:items-center"><div><div className="mb-2 flex items-center justify-between"><div><p className="text-sm font-semibold text-slate-700">Overall progress</p><p className="text-xs text-slate-500">Topics and subtopics count together</p></div><span className="text-3xl font-bold text-cyan-700">{overallPercent}%</span></div><Progress value={overallPercent} className="h-3" /></div><div className="grid grid-cols-3 gap-3 text-center"><div className="rounded-xl bg-slate-50 p-3"><Layers3 className="mx-auto mb-1 h-4 w-4 text-cyan-600" /><p className="text-xl font-bold">{levels.length}</p><p className="text-[11px] text-slate-500">Levels</p></div><div className="rounded-xl bg-slate-50 p-3"><ListChecks className="mx-auto mb-1 h-4 w-4 text-indigo-600" /><p className="text-xl font-bold">{overall.total}</p><p className="text-[11px] text-slate-500">Items</p></div><div className="rounded-xl bg-slate-50 p-3"><CheckCircle2 className="mx-auto mb-1 h-4 w-4 text-emerald-600" /><p className="text-xl font-bold">{overall.completed}</p><p className="text-[11px] text-slate-500">Done</p></div></div></section>
+    {levels.length === 0 ? <div className="rounded-3xl border border-dashed border-slate-300 bg-white py-16 text-center"><Brain className="mx-auto mb-4 h-12 w-12 text-slate-300" /><p className="font-semibold">Your roadmap is empty</p><p className="mt-1 text-sm text-slate-500">Create your first level and turn a big goal into a clear sequence.</p></div> : <div className="space-y-5">{levels.map((level, index) => { const stats = levelStats(level); const isOpen = expanded[level.id] !== false; return <Card key={level.id} className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm"><CardHeader className="border-b border-slate-100 bg-gradient-to-r from-white to-cyan-50/60"><div className="flex items-start gap-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-lg font-bold text-cyan-300">{index + 1}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><CardTitle className="text-xl">{level.title}</CardTitle><Badge className={stats.percent === 100 && stats.total > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-cyan-100 text-cyan-700'}>{stats.percent === 100 && stats.total > 0 ? 'Completed' : stats.percent > 0 ? 'In progress' : 'Not started'}</Badge></div>{level.description && <p className="mt-1 text-sm text-slate-500">{level.description}</p>}<div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">{level.estimatedWeeks && <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" />{level.estimatedWeeks}</span>}<span>{stats.completed}/{stats.total} items</span></div></div><div className="flex items-center gap-1"><Button variant="ghost" size="icon" onClick={() => moveLevel(level, -1)} disabled={index === 0} title="Move level up"><ArrowUp className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => moveLevel(level, 1)} disabled={index === levels.length - 1} title="Move level down"><ArrowDown className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => openEditLevel(level)} title="Edit level"><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => deleteLevel(level.id)} className="text-red-500" title="Delete level"><Trash2 className="h-4 w-4" /></Button></div></div><div className="mt-5 flex items-center gap-3"><Progress value={stats.percent} className="h-2 flex-1" /><span className="w-10 text-right text-sm font-bold text-cyan-700">{stats.percent}%</span><Button variant="ghost" size="sm" onClick={() => setExpanded((current) => ({ ...current, [level.id]: !isOpen }))}>{isOpen ? 'Collapse' : 'Expand'}</Button></div></CardHeader>{isOpen && <CardContent className="space-y-3 p-5"><div className="flex items-center justify-between"><p className="text-sm font-semibold text-slate-700">Topics & subtopics</p><Button size="sm" onClick={() => openAddTopic(level.id)} className="bg-cyan-600 hover:bg-cyan-700"><Plus className="mr-1 h-4 w-4" />Add topic</Button></div>{level.topics.length === 0 ? <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">No topics yet. Add the first milestone for this level.</div> : level.topics.map((topic) => { const subs = getSubtopics(topic); const links = getLinks(topic); return <div key={topic.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"><div className="flex items-start gap-3"><button onClick={() => toggleTopic(topic)} className="mt-0.5 rounded-full" aria-label={`Mark ${topic.name} complete`}>{topic.completed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <Circle className="h-5 w-5 text-slate-400" />}</button><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className={`font-semibold ${topic.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{topic.name}</p>{topic.estimatedTime && <span className="text-xs text-slate-500">{topic.estimatedTime}</span>}</div><div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500"><span>{subs.filter((item) => item.completed).length}/{subs.length} subtopics</span>{links.length > 0 && <span className="inline-flex items-center gap-1 text-cyan-700"><Video className="h-3.5 w-3.5" />{links.length} videos</span>}{topic.resources && <a href={topic.resources} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600"><Link2 className="h-3.5 w-3.5" />Resource</a>}</div></div><Button variant="ghost" size="icon" onClick={() => deleteTopic(topic.id)} className="text-red-500"><Trash2 className="h-4 w-4" /></Button></div>{subs.length > 0 && <div className="mt-3 space-y-1 border-l-2 border-cyan-200 pl-8">{subs.map((subtopic) => <button key={subtopic.id} onClick={() => toggleSubtopic(topic, subtopic.id)} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white">{subtopic.completed ? <Check className="h-4 w-4 text-emerald-600" /> : <Circle className="h-4 w-4 text-slate-300" />}<span className={subtopic.completed ? 'text-slate-400 line-through' : 'text-slate-600'}>{subtopic.name}</span></button>)}</div>}{links.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{links.map((link) => <a key={link} href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs text-cyan-700 shadow-sm hover:bg-cyan-50"><ExternalLink className="h-3 w-3" />Video</a>)}</div>}</div>; })}</CardContent>}</Card>; })}</div>}
 
-      if (response.ok) {
-        const updatedTopic = await response.json();
-        setLevels(levels.map(l => ({
-          ...l,
-          topics: l.topics.map(t => t.id === updatedTopic.id ? updatedTopic : t),
-        })));
-      }
-    } catch (error) {
-      console.error('❌ Error toggling topic:', error);
-    }
-  };
-
-  const handleDeleteTopic = async (topicId: string) => {
-    if (!confirm('Delete this topic?')) return;
-
-    try {
-      const response = await fetch(`/api/ai-roadmap/topics?id=${topicId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        setLevels(levels.map(l => ({
-          ...l,
-          topics: l.topics.filter(t => t.id !== topicId),
-        })));
-      }
-    } catch (error) {
-      console.error('❌ Error deleting topic:', error);
-      alert('Error deleting topic');
-    }
-  };
-
-  const getCompletedTopics = (level: Level) => level.topics.filter(t => t.completed).length;
-  const getTotalTopics = (level: Level) => level.topics.length;
-  const getCompletionPercent = (level: Level) => getTotalTopics(level) > 0 ? Math.round((getCompletedTopics(level) / getTotalTopics(level)) * 100) : 0;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-          <p className="text-slate-300">Loading AI roadmap...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Brain className="h-8 w-8 text-blue-400" />
-            <h1 className="text-4xl font-bold text-white">AI/ML Learning Roadmap</h1>
-          </div>
-          <p className="text-slate-400">Your structured path to mastering AI and Machine Learning</p>
-        </div>
-
-        {/* Database Status Badge */}
-        <div className="mb-6 flex items-center gap-2 bg-green-900/30 border border-green-700/50 rounded-lg px-4 py-2 w-fit">
-          <Database className="h-4 w-4 text-green-400" />
-          <span className="text-sm text-green-300">✅ Database Connected</span>
-        </div>
-
-        {/* Add Level Button */}
-        <div className="mb-8">
-          <Dialog open={isAddingLevel} onOpenChange={setIsAddingLevel}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Level
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-slate-800 border-slate-700">
-              <DialogHeader>
-                <DialogTitle className="text-white">Add New Level</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-slate-300">Title *</Label>
-                  <Input
-                    value={levelForm.title}
-                    onChange={(e) => setLevelForm({ ...levelForm, title: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                    placeholder="e.g., Advanced Neural Networks"
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-300">Description</Label>
-                  <Textarea
-                    value={levelForm.description}
-                    onChange={(e) => setLevelForm({ ...levelForm, description: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                    placeholder="What will you learn in this level?"
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-300">Estimated Weeks</Label>
-                  <Input
-                    value={levelForm.estimatedWeeks}
-                    onChange={(e) => setLevelForm({ ...levelForm, estimatedWeeks: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                    placeholder="e.g., 4 weeks"
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    onClick={handleAddLevel}
-                    disabled={isSaving}
-                    className="bg-blue-600 hover:bg-blue-700 flex-1"
-                  >
-                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                    Add Level
-                  </Button>
-                  <Button onClick={() => setIsAddingLevel(false)} variant="outline" disabled={isSaving}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Levels List */}
-        <div className="space-y-6">
-          {levels.length === 0 ? (
-            <Card className="bg-slate-800 border-slate-700">
-              <CardContent className="pt-12 text-center">
-                <AlertCircle className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-400">No levels yet. Start by adding your first level!</p>
-              </CardContent>
-            </Card>
-          ) : (
-            levels.map(level => {
-              const completed = getCompletedTopics(level);
-              const total = getTotalTopics(level);
-              const completionPercent = getCompletionPercent(level);
-
-              return (
-                <Card key={level.id} className="bg-slate-800 border-slate-700 hover:border-blue-500 transition-colors">
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <CardTitle className="text-white text-xl">{level.title}</CardTitle>
-                          {level.status === 'completed' && (
-                            <Badge className="bg-green-600">Completed</Badge>
-                          )}
-                          {level.status === 'in-progress' && (
-                            <Badge className="bg-blue-600">In Progress</Badge>
-                          )}
-                        </div>
-                        {level.description && (
-                          <p className="text-slate-400 text-sm mb-3">{level.description}</p>
-                        )}
-                        {level.estimatedWeeks && (
-                          <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
-                            <Clock className="h-4 w-4" />
-                            {level.estimatedWeeks}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleDeleteLevel(level.id)}
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent>
-                    {/* Progress Bar */}
-                    <div className="mb-6">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm text-slate-400">Progress: {completed}/{total} topics</span>
-                        <span className="text-sm font-semibold text-blue-300">{completionPercent}%</span>
-                      </div>
-                      <Progress value={completionPercent} className="h-2" />
-                    </div>
-
-                    {/* Topics */}
-                    <div className="space-y-3 mb-6">
-                      {level.topics && level.topics.length > 0 ? (
-                        level.topics.map(topic => (
-                          <div key={topic.id} className="flex items-center gap-3 p-3 bg-slate-700 rounded-lg group hover:bg-slate-600 transition-colors">
-                            <button
-                              onClick={() => handleToggleTopic(topic)}
-                              className="flex-shrink-0"
-                            >
-                              {topic.completed ? (
-                                <CheckCircle2 className="h-5 w-5 text-green-400" />
-                              ) : (
-                                <Circle className="h-5 w-5 text-slate-500" />
-                              )}
-                            </button>
-                            <div className="flex-1">
-                              <p className={`text-sm font-medium ${topic.completed ? 'text-slate-400 line-through' : 'text-white'}`}>
-                                {topic.name}
-                              </p>
-                              {topic.estimatedTime && (
-                                <p className="text-xs text-slate-500">{topic.estimatedTime}</p>
-                              )}
-                            </div>
-                            <Button
-                              onClick={() => handleDeleteTopic(topic.id)}
-                              variant="ghost"
-                              size="sm"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-slate-500 italic">No topics yet</p>
-                      )}
-                    </div>
-
-                    {/* Add Topic Button */}
-                    {addingTopicToLevelId !== level.id ? (
-                      <Dialog open={isAddingTopic && addingTopicToLevelId === level.id} onOpenChange={() => {
-                        setIsAddingTopic(false);
-                        setAddingTopicToLevelId(null);
-                      }}>
-                        <DialogTrigger asChild>
-                          <Button
-                            onClick={() => {
-                              setAddingTopicToLevelId(level.id);
-                              setIsAddingTopic(true);
-                            }}
-                            variant="outline"
-                            size="sm"
-                            className="w-full border-slate-600 text-slate-300 hover:text-white"
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Add Topic
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="bg-slate-800 border-slate-700">
-                          <DialogHeader>
-                            <DialogTitle className="text-white">Add Topic to {level.title}</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <Label className="text-slate-300">Topic Name *</Label>
-                              <Input
-                                value={topicForm.name}
-                                onChange={(e) => setTopicForm({ ...topicForm, name: e.target.value })}
-                                className="bg-slate-700 border-slate-600 text-white"
-                                placeholder="e.g., Backpropagation"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-slate-300">Estimated Time</Label>
-                              <Input
-                                value={topicForm.estimatedTime}
-                                onChange={(e) => setTopicForm({ ...topicForm, estimatedTime: e.target.value })}
-                                className="bg-slate-700 border-slate-600 text-white"
-                                placeholder="e.g., 3 hours"
-                              />
-                            </div>
-                            <div className="flex gap-3 pt-4">
-                              <Button
-                                onClick={() => handleAddTopic(level.id)}
-                                disabled={isSaving}
-                                className="bg-blue-600 hover:bg-blue-700 flex-1"
-                              >
-                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                                Add Topic
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  setIsAddingTopic(false);
-                                  setAddingTopicToLevelId(null);
-                                }}
-                                variant="outline"
-                                disabled={isSaving}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              );
-            })
-          )}
-        </div>
-      </div>
-    </div>
-  );
+    <Dialog open={topicDialog} onOpenChange={setTopicDialog}><DialogContent className="max-h-[92vh] overflow-y-auto"><DialogHeader><DialogTitle>Add a topic with learning resources</DialogTitle></DialogHeader><div className="space-y-4"><div><Label>Topic name *</Label><Input value={topicForm.name} onChange={(e) => setTopicForm({ ...topicForm, name: e.target.value })} placeholder="Neural network fundamentals" /></div><div><Label>Estimated time</Label><Input value={topicForm.estimatedTime} onChange={(e) => setTopicForm({ ...topicForm, estimatedTime: e.target.value })} placeholder="3 hours" /></div><div><Label>Subtopics</Label><Textarea value={topicForm.subtopics} onChange={(e) => setTopicForm({ ...topicForm, subtopics: e.target.value })} rows={5} placeholder="One subtopic per line" /></div><div><Label>Video URLs</Label><Textarea value={topicForm.videoLinks} onChange={(e) => setTopicForm({ ...topicForm, videoLinks: e.target.value })} rows={3} placeholder="One YouTube or course URL per line" /></div><div><Label>Resource URL</Label><Input value={topicForm.resources} onChange={(e) => setTopicForm({ ...topicForm, resources: e.target.value })} placeholder="https://course, docs, or article" /></div><Button onClick={saveTopic} disabled={saving} className="w-full bg-cyan-600 hover:bg-cyan-700">{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add topic</Button></div></DialogContent></Dialog>
+  </div></div>;
 }
