@@ -77,7 +77,7 @@ export default function ResearchPage() {
     year: '',
     link: '',
     topic: '',
-    status: 'TO_READ' as const,
+    status: 'TO_READ' as ResearchPaper['status'],
     researchProblem: '',
     dataset: '',
     method: '',
@@ -99,13 +99,72 @@ export default function ResearchPage() {
       setLoading(true);
       const response = await fetch(`/api/research-papers?userId=${userId}`);
       if (response.ok) {
-        const data = await response.json();
-        setPapers(data);
+        const data: ResearchPaper[] = await response.json();
+        const legacyPapers = getLegacyPapers();
+        const existingKeys = new Set(data.map(getPaperKey));
+        const papersToMigrate = legacyPapers.filter((paper) => !existingKeys.has(getPaperKey(paper)));
+
+        if (papersToMigrate.length > 0) {
+          const migratedPapers = await Promise.all(
+            papersToMigrate.map(async (paper) => {
+              const migrationResponse = await fetch('/api/research-papers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, ...paper }),
+              });
+
+              if (!migrationResponse.ok) return null;
+              return migrationResponse.json() as Promise<ResearchPaper>;
+            })
+          );
+
+          const imported = migratedPapers.filter((paper): paper is ResearchPaper => paper !== null);
+          setPapers([...imported, ...data]);
+        } else {
+          setPapers(data);
+        }
       }
     } catch (error) {
       console.error('❌ Error loading research papers:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getPaperKey = (paper: Pick<ResearchPaper, 'title' | 'authors'>) =>
+    `${paper.title.trim().toLowerCase()}::${paper.authors.trim().toLowerCase()}`;
+
+  const getLegacyPapers = () => {
+    try {
+      const saved = localStorage.getItem('researchPapers');
+      if (!saved) return [];
+
+      const legacyPapers = JSON.parse(saved);
+      if (!Array.isArray(legacyPapers)) return [];
+
+      return legacyPapers
+        .filter((paper) => paper?.title && paper?.authors)
+        .map((paper) => ({
+          title: String(paper.title),
+          authors: Array.isArray(paper.authors) ? paper.authors.join(', ') : String(paper.authors),
+          year: paper.year ? String(paper.year) : null,
+          link: paper.link || null,
+          topic: paper.topic || null,
+          status: STATUS_OPTIONS.some((option) => option.value === paper.status) ? paper.status : 'TO_READ',
+          researchProblem: paper.researchProblem || null,
+          dataset: paper.dataset || null,
+          method: paper.method || null,
+          model: paper.model || null,
+          results: paper.results || null,
+          limitations: paper.limitations || null,
+          importantNotes: paper.importantNotes || null,
+          myThoughts: paper.myThoughts || null,
+          researchIdeas: paper.researchIdeas || null,
+          materials: Array.isArray(paper.materials) ? paper.materials : [],
+        }));
+    } catch (error) {
+      console.error('❌ Error reading legacy research papers:', error);
+      return [];
     }
   };
 

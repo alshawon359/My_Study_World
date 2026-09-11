@@ -23,10 +23,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate real-time stats
-    const subjectsWithStats = subjects.map(subject => {
+    const subjectsWithStats = subjects.map((subject: any) => {
       const totalChapters = subject.chapters.length;
-      const completedChapters = subject.chapters.filter(ch => ch.completed).length;
-      const totalTopics = subject.chapters.reduce((sum, ch) => {
+      const completedChapters = subject.chapters.filter((ch: any) => ch.completed).length;
+      const totalTopics = subject.chapters.reduce((sum: number, ch: any) => {
         const topics = JSON.parse(ch.topics || '[]');
         return sum + (Array.isArray(topics) ? topics.length : 0);
       }, 0);
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         completedChapters,
         totalTopics,
         completedTopics: 0, // Can be calculated from topic completion if needed
-        chapters: subject.chapters.map(ch => ({
+        chapters: subject.chapters.map((ch: any) => ({
           ...ch,
           topics: JSON.parse(ch.topics || '[]'),
           materialsCount: ch.materials.length,

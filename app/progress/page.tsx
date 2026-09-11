@@ -34,6 +34,8 @@ interface WeeklyStats {
   completionRate: number;
 }
 
+const userId = 'cmtszibhe0000uzf04p06d1fe';
+
 export default function ProgressPage() {
   const [stats, setStats] = useState<WeeklyStats>({
     totalStudyHours: 0,
@@ -99,10 +101,14 @@ export default function ProgressPage() {
     }
   };
 
-  const loadResearchPapers = () => {
-    const saved = localStorage.getItem('researchPapers');
-    if (saved) {
-      setPapers(JSON.parse(saved));
+  const loadResearchPapers = async () => {
+    try {
+      const response = await fetch(`/api/research-papers?userId=${userId}`);
+      if (response.ok) {
+        setPapers(await response.json());
+      }
+    } catch (error) {
+      console.error('Error loading research papers:', error);
     }
   };
 
@@ -110,7 +116,7 @@ export default function ProgressPage() {
     loadStats();
     loadGoals();
     loadAIProgress();
-    loadResearchPapers();
+    void loadResearchPapers();
   };
 
   const targets = {
