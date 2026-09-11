@@ -128,6 +128,15 @@ export default function AIRoadmapPage() {
 
   useEffect(() => {
     loadLevels();
+    
+    // Show warning about local storage
+    const hasSeenWarning = sessionStorage.getItem('aiRoadmapWarningShown');
+    if (!hasSeenWarning && typeof window !== 'undefined') {
+      setTimeout(() => {
+        alert('⚠️ Important: AI/ML Roadmap data is currently stored locally in your browser only.\n\nThis means:\n• Data will NOT sync across different devices/browsers\n• Clearing browser data will delete all progress\n• Use the same browser/device to access your data\n\nDatabase sync coming soon!');
+        sessionStorage.setItem('aiRoadmapWarningShown', 'true');
+      }, 1000);
+    }
   }, []);
 
   const loadLevels = () => {

@@ -104,6 +104,15 @@ export default function ResearchPage() {
 
   useEffect(() => {
     loadPapers();
+    
+    // Show warning about local storage
+    const hasSeenWarning = sessionStorage.getItem('researchWarningShown');
+    if (!hasSeenWarning && typeof window !== 'undefined') {
+      setTimeout(() => {
+        alert('⚠️ Important: Research papers are currently stored locally in your browser only.\n\nThis means:\n• Data will NOT sync across different devices/browsers\n• Clearing browser data will delete all papers\n• Use the same browser/device to access your data\n\nDatabase sync coming soon!');
+        sessionStorage.setItem('researchWarningShown', 'true');
+      }, 1000);
+    }
   }, []);
 
   const loadPapers = () => {
