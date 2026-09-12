@@ -18,12 +18,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    // Use BD timezone for date calculation
-    const bdDate = date ? getBDDate() : getBDDate(); // Always use getBDDate() for consistency
-    const dayOfWeek = bdDate.getUTCDay(); // CRITICAL FIX: Use getUTCDay() not getDay()
+    // Derive the weekday from the requested Bangladesh calendar date.
     const dateStr = date || getBDDateString();
+    const requestedDate = /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+      ? new Date(`${dateStr}T00:00:00Z`)
+      : getBDDate();
+    const dayOfWeek = requestedDate.getUTCDay();
     
-    console.log(`📅 BD Time: ${bdDate.toISOString()}`);
+    console.log(`📅 Requested date: ${requestedDate.toISOString()}`);
     console.log(`📅 Generating tasks for date: ${dateStr}, Day: ${dayOfWeek} (${getDayName(dayOfWeek)}) [BD timezone]`);
 
     // Get schedule blocks for this day
@@ -47,21 +49,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Delete existing tasks for this specific date
     const startOfDay = getBDStartOfDay(dateStr);
     const endOfDay = getBDEndOfDay(dateStr);
-    
-    const deleted = await prisma.task.deleteMany({
-      where: {
-        userId,
-        date: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-      },
-    });
 
-    console.log(`🗑️ Deleted ${deleted.count} existing tasks for ${dateStr}`);
+    const existingTasks = await prisma.task.findMany({
+      where: { userId, date: { gte: startOfDay, lte: endOfDay } },
+    });
+    const existingByBlock = new Map(existingTasks.map((task) => [task.scheduleBlockId, task]));
 
     // Determine current status based on BD time
     const currentTimeStr = getBDTimeString();
@@ -88,7 +82,8 @@ export async function POST(request: NextRequest) {
 
       console.log(`✨ Creating task: "${block.title}" (${block.startTime}-${block.endTime}) Status: ${status}`);
 
-      const task = await prisma.task.create({
+      const existingTask = existingByBlock.get(block.id);
+      const task = existingTask || await prisma.task.create({
         data: {
           userId,
           title: block.title,

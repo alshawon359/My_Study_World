@@ -104,9 +104,9 @@ export default function DashboardPage() {
         console.error('❌ Failed to load tasks:', errorText);
       }
 
-      // Step 3: Auto-generate if needed
-      if (tasksData.length === 0 && scheduleData.length > 0) {
-        console.log('⚡ No tasks found but schedule blocks exist. Generating tasks...');
+      // Step 3: Reconcile every schedule block into today's tasks.
+      if (tasksData.length < scheduleData.length && scheduleData.length > 0) {
+        console.log('⚡ Schedule has missing tasks. Reconciling today\'s tasks...');
         
         try {
           const generateRes = await fetch('/api/tasks/generate', {
