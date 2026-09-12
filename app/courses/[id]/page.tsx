@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { upload } from '@vercel/blob/client';
 
 interface Topic {
   id: string;
@@ -444,26 +445,27 @@ export default function CourseDetailPage() {
     ));
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    const newFiles: Array<{ name: string; url: string; type: string }> = [];
-    
-    Array.from(files).forEach(file => {
-      const url = URL.createObjectURL(file);
-      newFiles.push({
-        name: file.name,
-        url: url,
-        type: file.type,
-      });
-    });
-
-    setUploadedFiles([...uploadedFiles, ...newFiles]);
+    try {
+      const newFiles = await Promise.all(Array.from(files).map(async (file) => {
+        const blob = await upload(`course-materials/${Date.now()}-${file.name}`, file, {
+          access: 'public',
+          handleUploadUrl: '/api/course-materials/upload',
+        });
+        return { name: file.name, url: blob.url, type: file.type };
+      }));
+      setUploadedFiles((current) => [...current, ...newFiles]);
+      toast({ title: 'Files uploaded', description: `${newFiles.length} material file(s) ready to save.` });
+    } catch (error) {
+      console.error('Error uploading course material:', error);
+      toast({ title: 'Upload failed', description: 'Could not upload the selected file.', variant: 'destructive' });
+    }
   };
 
   const handleRemoveFile = (url: string) => {
-    URL.revokeObjectURL(url);
     setUploadedFiles(uploadedFiles.filter(f => f.url !== url));
   };
 
@@ -601,8 +603,6 @@ export default function CourseDetailPage() {
       externalUrl: '',
       content: '',
     });
-    // Clear uploaded files and revoke URLs
-    uploadedFiles.forEach(f => URL.revokeObjectURL(f.url));
     setUploadedFiles([]);
   };
 
