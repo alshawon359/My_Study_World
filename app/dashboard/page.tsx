@@ -140,6 +140,8 @@ export default function DashboardPage() {
         }
       } else if (scheduleData.length === 0) {
         console.log('ℹ️ No schedule blocks found for today');
+        // The dashboard mirrors the weekly schedule; do not show stale tasks.
+        tasksData = [];
       }
 
       setTodayTasks(tasksData.sort((a: Task, b: Task) => a.startTime.localeCompare(b.startTime)));

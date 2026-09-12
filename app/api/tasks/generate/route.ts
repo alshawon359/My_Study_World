@@ -41,6 +41,11 @@ export async function POST(request: NextRequest) {
 
     if (scheduleBlocks.length === 0) {
       console.log('⚠️ No schedule blocks found');
+      const startOfDay = getBDStartOfDay(dateStr);
+      const endOfDay = getBDEndOfDay(dateStr);
+      await prisma.task.deleteMany({
+        where: { userId, date: { gte: startOfDay, lte: endOfDay } },
+      });
       return NextResponse.json({
         success: true,
         count: 0,
@@ -60,7 +65,10 @@ export async function POST(request: NextRequest) {
       where: {
         userId,
         date: { gte: startOfDay, lte: endOfDay },
-        scheduleBlockId: { not: null, notIn: [...scheduleBlockIds] },
+        OR: [
+          { scheduleBlockId: null },
+          { scheduleBlockId: { notIn: [...scheduleBlockIds] } },
+        ],
       },
     });
     const existingByBlock = new Map(existingTasks.map((task) => [task.scheduleBlockId, task]));

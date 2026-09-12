@@ -27,7 +27,9 @@ export async function GET(request: NextRequest) {
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
     });
 
-    return NextResponse.json(scheduleBlocks);
+    return NextResponse.json(scheduleBlocks, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+    });
   } catch (error) {
     console.error('Error fetching schedule:', error);
     return NextResponse.json(

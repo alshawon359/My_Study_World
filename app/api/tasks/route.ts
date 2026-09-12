@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
       console.log(`✅ Found ${tasks.length} total tasks for user`);
     }
 
-    return NextResponse.json(tasks);
+    return NextResponse.json(tasks, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+    });
   } catch (error: any) {
     console.error('❌ Error fetching tasks:', error);
     console.error('Error details:', error.message);
