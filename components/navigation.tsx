@@ -23,7 +23,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/schedule', label: 'Schedule', icon: Calendar },
   { href: '/courses', label: 'Courses', icon: BookOpen },
-  { href: '/ai-roadmap', label: 'AI/ML', icon: Brain },
+  { href: '/ai-roadmap', label: 'Skills', icon: Brain },
   { href: '/research', label: 'Research', icon: FlaskConical },
   { href: '/goals', label: 'Goals', icon: Target },
   { href: '/progress', label: 'Progress', icon: BarChart3 },

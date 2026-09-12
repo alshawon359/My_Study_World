@@ -21,6 +21,8 @@ import {
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<{ name: string; username: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [settings, setSettings] = useState({
     // Sleep
     sleepStartTime: '01:00',
@@ -52,7 +54,38 @@ export default function SettingsPage() {
     weeklyResearchHours: 6,
   });
 
-  useEffect(() => { fetch('/api/auth/me').then((response) => response.json()).then(({ user }) => setProfile(user)); }, []);
+  useEffect(() => {
+    fetch('/api/auth/me').then((response) => response.json()).then(({ user }) => setProfile(user));
+    fetch('/api/settings').then((response) => response.ok ? response.json() : null).then((data) => {
+      if (!data) return;
+      setSettings({
+        sleepStartTime: data.sleepStartTime, sleepEndTime: data.sleepEndTime, sleepTarget: data.sleepTarget,
+        phoneLimit: data.phoneLimit, pomodoroWork: data.defaultPomodoroWork, pomodoroBreak: data.defaultPomodoroBreak,
+        focusModeEnabled: data.focusModeEnabled, notificationsEnabled: data.notificationsEnabled, taskReminders: data.taskReminders,
+        reminderMinutes: data.reminderMinutes, quietHoursStart: data.quietHoursStart || '23:00', quietHoursEnd: data.quietHoursEnd || '08:00',
+        theme: data.theme, weeklyStudyHours: data.weeklyStudyHoursTarget, weeklyAcademicHours: data.weeklyAcademicHoursTarget,
+        weeklyAIHours: data.weeklyAIHoursTarget, weeklyResearchHours: data.weeklyResearchHoursTarget,
+      });
+    });
+  }, []);
+
+  const saveSettings = async () => {
+    setSaving(true);
+    setSaved(false);
+    const response = await fetch('/api/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sleepStartTime: settings.sleepStartTime, sleepEndTime: settings.sleepEndTime, sleepTarget: settings.sleepTarget,
+        phoneLimit: settings.phoneLimit, defaultPomodoroWork: settings.pomodoroWork, defaultPomodoroBreak: settings.pomodoroBreak,
+        focusModeEnabled: settings.focusModeEnabled, notificationsEnabled: settings.notificationsEnabled, taskReminders: settings.taskReminders,
+        reminderMinutes: settings.reminderMinutes, quietHoursStart: settings.quietHoursStart, quietHoursEnd: settings.quietHoursEnd,
+        theme: settings.theme, weeklyStudyHoursTarget: settings.weeklyStudyHours, weeklyAcademicHoursTarget: settings.weeklyAcademicHours,
+        weeklyAIHoursTarget: settings.weeklyAIHours, weeklyResearchHoursTarget: settings.weeklyResearchHours,
+      }),
+    });
+    setSaving(false);
+    if (response.ok) setSaved(true);
+  };
 
   const handleToggle = (key: string) => {
     setSettings((prev) => ({
@@ -509,7 +542,7 @@ export default function SettingsPage() {
           {/* Save Button */}
           <div className="flex justify-end gap-4">
             <Button variant="outline">Reset to Defaults</Button>
-            <Button size="lg">Save Settings</Button>
+            <Button size="lg" onClick={saveSettings} disabled={saving}>{saving ? 'Saving...' : saved ? 'Saved' : 'Save Settings'}</Button>
           </div>
         </div>
       </div>

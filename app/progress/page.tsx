@@ -32,9 +32,17 @@ interface WeeklyStats {
   avgSleepHours: number;
   avgPhoneMinutes: number;
   completionRate: number;
+  completedGoals: number;
+  totalGoals: number;
+  completedAITopics: number;
+  totalAITopics: number;
+  readPapers: number;
+  totalPapers: number;
+  readingPapers: number;
+  toReadPapers: number;
+  targets: { weeklyStudy: number; academic: number; ai: number; research: number; sleep: number; phone: number };
+  updatedAt: string;
 }
-
-const userId = 'cmtszibhe0000uzf04p06d1fe';
 
 export default function ProgressPage() {
   const [stats, setStats] = useState<WeeklyStats>({
@@ -47,90 +55,34 @@ export default function ProgressPage() {
     avgSleepHours: 0,
     avgPhoneMinutes: 0,
     completionRate: 0,
+    completedGoals: 0,
+    totalGoals: 0,
+    completedAITopics: 0,
+    totalAITopics: 0,
+    readPapers: 0,
+    totalPapers: 0,
+    readingPapers: 0,
+    toReadPapers: 0,
+    targets: { weeklyStudy: 40, academic: 22, ai: 12, research: 6, sleep: 6.5, phone: 90 },
+    updatedAt: '',
   });
 
-  const [goals, setGoals] = useState<any[]>([]);
-  const [aiTopics, setAiTopics] = useState<any[]>([]);
-  const [papers, setPapers] = useState<any[]>([]);
+  const loadStats = async () => {
+    const response = await fetch('/api/progress', { cache: 'no-store' });
+    if (response.ok) setStats(await response.json());
+  };
 
   useEffect(() => {
-    loadStats();
-    loadGoals();
-    loadAIProgress();
-    loadResearchPapers();
+    void loadStats();
+    const interval = window.setInterval(() => void loadStats(), 30000);
+    return () => window.clearInterval(interval);
   }, []);
 
-  const loadStats = () => {
-    // Calculate from tasks and schedule
-    const savedTasks = localStorage.getItem('tasks');
-    if (savedTasks) {
-      const tasks = JSON.parse(savedTasks);
-      const completedTasks = tasks.filter((t: any) => t.status === 'COMPLETED').length;
-      const completionRate = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
-
-      // Calculate study hours (assuming each task is 1-2 hours)
-      const totalStudyHours = completedTasks * 1.5;
-
-      setStats({
-        totalStudyHours,
-        academicHours: totalStudyHours * 0.5,
-        aiHours: totalStudyHours * 0.3,
-        researchHours: totalStudyHours * 0.2,
-        completedTasks,
-        totalTasks: tasks.length,
-        avgSleepHours: 6.5,
-        avgPhoneMinutes: 75,
-        completionRate,
-      });
-    }
-  };
-
-  const loadGoals = () => {
-    const saved = localStorage.getItem('studyGoals');
-    if (saved) {
-      setGoals(JSON.parse(saved));
-    }
-  };
-
-  const loadAIProgress = () => {
-    const saved = localStorage.getItem('aiRoadmapLevels');
-    if (saved) {
-      const levels = JSON.parse(saved);
-      const allTopics = levels.flatMap((l: any) => l.topics);
-      setAiTopics(allTopics);
-    }
-  };
-
-  const loadResearchPapers = async () => {
-    try {
-      const response = await fetch(`/api/research-papers?userId=${userId}`);
-      if (response.ok) {
-        setPapers(await response.json());
-      }
-    } catch (error) {
-      console.error('Error loading research papers:', error);
-    }
-  };
-
   const handleRefresh = () => {
-    loadStats();
-    loadGoals();
-    loadAIProgress();
-    void loadResearchPapers();
+    void loadStats();
   };
 
-  const targets = {
-    weeklyStudy: 40,
-    academic: 22,
-    ai: 12,
-    research: 6,
-    sleep: 6.5,
-    phone: 90,
-  };
-
-  const completedGoals = goals.filter(g => g.completed).length;
-  const completedAITopics = aiTopics.filter(t => t.completed).length;
-  const readPapers = papers.filter(p => p.status === 'READ' || p.status === 'IMPORTANT').length;
+  const targets = stats.targets;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -285,11 +237,11 @@ export default function ProgressPage() {
                   <CheckCircle2 className="h-5 w-5 text-green-600" />
                 </div>
                 <div className="text-4xl font-bold mb-2">
-                  {completedGoals} / {goals.length}
+                  {stats.completedGoals} / {stats.totalGoals}
                 </div>
-                <Progress value={goals.length > 0 ? (completedGoals / goals.length) * 100 : 0} className="h-2 mb-2" />
+                <Progress value={stats.totalGoals > 0 ? (stats.completedGoals / stats.totalGoals) * 100 : 0} className="h-2 mb-2" />
                 <div className="text-sm text-muted-foreground">
-                  {goals.length > 0 ? Math.round((completedGoals / goals.length) * 100) : 0}% goals completed
+                  {stats.totalGoals > 0 ? Math.round((stats.completedGoals / stats.totalGoals) * 100) : 0}% goals completed
                 </div>
               </CardContent>
             </Card>
@@ -304,11 +256,11 @@ export default function ProgressPage() {
                   <TrendingUp className="h-5 w-5 text-blue-600" />
                 </div>
                 <div className="text-4xl font-bold mb-2">
-                  {completedAITopics} / {aiTopics.length}
+                  {stats.completedAITopics} / {stats.totalAITopics}
                 </div>
-                <Progress value={aiTopics.length > 0 ? (completedAITopics / aiTopics.length) * 100 : 0} className="h-2 mb-2" />
+                <Progress value={stats.totalAITopics > 0 ? (stats.completedAITopics / stats.totalAITopics) * 100 : 0} className="h-2 mb-2" />
                 <div className="text-sm text-muted-foreground">
-                  {aiTopics.length > 0 ? Math.round((completedAITopics / aiTopics.length) * 100) : 0}% roadmap complete
+                  {stats.totalAITopics > 0 ? Math.round((stats.completedAITopics / stats.totalAITopics) * 100) : 0}% roadmap complete
                 </div>
               </CardContent>
             </Card>
@@ -379,9 +331,9 @@ export default function ProgressPage() {
                   <BookOpen className="h-5 w-5 text-teal-600" />
                   <span className="text-sm text-muted-foreground">Papers Read</span>
                 </div>
-                <div className="text-4xl font-bold">{readPapers}</div>
+                <div className="text-4xl font-bold">{stats.readPapers}</div>
                 <div className="text-sm text-muted-foreground mt-2">
-                  Total papers: {papers.length}
+                  Total papers: {stats.totalPapers}
                 </div>
               </CardContent>
             </Card>
@@ -393,7 +345,7 @@ export default function ProgressPage() {
                   <span className="text-sm text-muted-foreground">Reading</span>
                 </div>
                 <div className="text-4xl font-bold">
-                  {papers.filter(p => p.status === 'READING').length}
+                  {stats.readingPapers}
                 </div>
                 <div className="text-sm text-muted-foreground mt-2">
                   Currently reading
@@ -408,7 +360,7 @@ export default function ProgressPage() {
                   <span className="text-sm text-muted-foreground">To Read</span>
                 </div>
                 <div className="text-4xl font-bold">
-                  {papers.filter(p => p.status === 'TO_READ').length}
+                  {stats.toReadPapers}
                 </div>
                 <div className="text-sm text-muted-foreground mt-2">
                   In queue
