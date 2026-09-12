@@ -13,7 +13,7 @@ import { ScheduleBlock, BlockCategory, Priority, BlockType } from '@prisma/clien
 import { Plus, Edit2, Trash2, Calendar, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getDayName } from '@/lib/utils';
-import { getBDDayOfWeek } from '@/lib/date-utils';
+import { getBDDateString, getBDDayOfWeek } from '@/lib/date-utils';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -133,10 +133,10 @@ export default function SchedulePage() {
           if (editingBlock.dayOfWeek === today) {
             console.log('🔄 Syncing tasks after update...');
             try {
-              const syncRes = await fetch('/api/sync-tasks', {
+              const syncRes = await fetch('/api/tasks/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId }),
+                body: JSON.stringify({ date: getBDDateString() }),
               });
               
               if (syncRes.ok) {
@@ -186,10 +186,10 @@ export default function SchedulePage() {
           if (selectedDay === today) {
             console.log('🔄 Syncing tasks for today...');
             try {
-              const syncRes = await fetch('/api/sync-tasks', {
+              const syncRes = await fetch('/api/tasks/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId }),
+                body: JSON.stringify({ date: getBDDateString() }),
               });
               
               if (syncRes.ok) {
@@ -258,11 +258,11 @@ export default function SchedulePage() {
         const today = getBDDayOfWeek();
         if (block.dayOfWeek === today) {
           console.log('🔄 Syncing tasks after delete...');
-          try {
-            const syncRes = await fetch('/api/sync-tasks', {
+            try {
+              const syncRes = await fetch('/api/tasks/generate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId }),
+                body: JSON.stringify({ date: getBDDateString() }),
             });
             
             if (syncRes.ok) {

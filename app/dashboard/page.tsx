@@ -104,9 +104,9 @@ export default function DashboardPage() {
         console.error('❌ Failed to load tasks:', errorText);
       }
 
-      // Step 3: Reconcile every schedule block into today's tasks.
-      if (tasksData.length < scheduleData.length && scheduleData.length > 0) {
-        console.log('⚡ Schedule has missing tasks. Reconciling today\'s tasks...');
+      // Step 3: Always reconcile today's tasks with the current schedule.
+      if (scheduleData.length > 0) {
+        console.log('⚡ Reconciling today\'s tasks with the schedule...');
         
         try {
           const generateRes = await fetch('/api/tasks/generate', {
@@ -117,7 +117,7 @@ export default function DashboardPage() {
 
           if (generateRes.ok) {
             const result = await generateRes.json();
-            tasksData = result.tasks || [];
+            tasksData = (result.tasks || []).sort((a: Task, b: Task) => a.startTime.localeCompare(b.startTime));
             console.log(`✅ Generated ${tasksData.length} tasks successfully`);
             
             if (tasksData.length > 0) {
@@ -140,11 +140,9 @@ export default function DashboardPage() {
         }
       } else if (scheduleData.length === 0) {
         console.log('ℹ️ No schedule blocks found for today');
-      } else {
-        console.log(`ℹ️ Using ${tasksData.length} existing tasks`);
       }
 
-      setTodayTasks(tasksData);
+      setTodayTasks(tasksData.sort((a: Task, b: Task) => a.startTime.localeCompare(b.startTime)));
       console.log('✅ Dashboard data load complete');
       
     } catch (error: any) {

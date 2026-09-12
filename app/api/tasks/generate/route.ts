@@ -55,6 +55,14 @@ export async function POST(request: NextRequest) {
     const existingTasks = await prisma.task.findMany({
       where: { userId, date: { gte: startOfDay, lte: endOfDay } },
     });
+    const scheduleBlockIds = new Set(scheduleBlocks.map((block) => block.id));
+    await prisma.task.deleteMany({
+      where: {
+        userId,
+        date: { gte: startOfDay, lte: endOfDay },
+        scheduleBlockId: { not: null, notIn: [...scheduleBlockIds] },
+      },
+    });
     const existingByBlock = new Map(existingTasks.map((task) => [task.scheduleBlockId, task]));
 
     // Determine current status based on BD time
@@ -83,21 +91,35 @@ export async function POST(request: NextRequest) {
       console.log(`✨ Creating task: "${block.title}" (${block.startTime}-${block.endTime}) Status: ${status}`);
 
       const existingTask = existingByBlock.get(block.id);
-      const task = existingTask || await prisma.task.create({
-        data: {
-          userId,
-          title: block.title,
-          description: block.description,
-          category: block.category,
-          startTime: block.startTime,
-          endTime: block.endTime,
-          duration: block.duration,
-          date: startOfDay,
-          status,
-          priority: block.priority,
-          scheduleBlockId: block.id,
-        },
-      });
+      const task = existingTask
+        ? await prisma.task.update({
+            where: { id: existingTask.id },
+            data: {
+              title: block.title,
+              description: block.description,
+              category: block.category,
+              priority: block.priority,
+              startTime: block.startTime,
+              endTime: block.endTime,
+              duration: block.duration,
+              scheduleBlockId: block.id,
+            },
+          })
+        : await prisma.task.create({
+            data: {
+              userId,
+              title: block.title,
+              description: block.description,
+              category: block.category,
+              startTime: block.startTime,
+              endTime: block.endTime,
+              duration: block.duration,
+              date: startOfDay,
+              status,
+              priority: block.priority,
+              scheduleBlockId: block.id,
+            },
+          });
       
       tasks.push(task);
     }
