@@ -170,8 +170,8 @@ export function Navigation() {
 
       {/* Bottom Mobile Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-t shadow-lg">
-        <div className="grid grid-cols-5 gap-1 p-2">
-          {[navItems[0], navItems[1], navItems[2], navItems[5], navItems[6]].map((item) => {
+        <div className="grid grid-cols-6 gap-1 p-2">
+          {[navItems[0], navItems[1], navItems[2], navItems[3], navItems[4], navItems[5]].map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
