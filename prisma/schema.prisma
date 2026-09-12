@@ -39,6 +39,7 @@ model User {
   dashboardWidgets DashboardWidget[]
   standaloneResearchPapers StandaloneResearchPaper[]
   aiRoadmapLevels  AIRoadmapLevel[]
+  exams            Exam[]
 }
 
 model AuthSession {
@@ -50,6 +51,33 @@ model AuthSession {
   createdAt DateTime @default(now())
 
   @@index([userId, expiresAt])
+}
+
+enum ExamType {
+  CLASS_TEST
+  MID
+  FINAL
+}
+
+model Exam {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title             String
+  subject           String?
+  examType          ExamType
+  examDate          DateTime
+  examTime          String
+  durationMinutes   Int?
+  topics            String   @default("[]")
+  approximateMarks  Int?
+  questionMaterial  String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId, examDate, examTime])
+  @@index([userId, examType])
 }
 
 model UserSettings {

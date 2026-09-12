@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Calendar,
+  ClipboardList,
   LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/schedule', label: 'Schedule', icon: Calendar },
   { href: '/courses', label: 'Courses', icon: BookOpen },
+  { href: '/exams', label: 'Exam', icon: ClipboardList },
   { href: '/ai-roadmap', label: 'Skills', icon: Brain },
   { href: '/research', label: 'Research', icon: FlaskConical },
   { href: '/goals', label: 'Goals', icon: Target },
