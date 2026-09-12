@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authenticatedUser, unauthorized } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -7,6 +8,8 @@ export const revalidate = 0;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const { levelId, ...data } = body;
 
     if (!levelId) {
@@ -17,6 +20,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Topic name is required' }, { status: 400 });
     }
 
+    const level = await prisma.aIRoadmapLevel.findFirst({ where: { id: levelId, userId: user.id } });
+    if (!level) return unauthorized();
     const topic = await prisma.aIRoadmapTopic.create({
       data: {
         levelId,
@@ -42,6 +47,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const { id, ...data } = body;
 
     if (!id) {
@@ -57,12 +64,14 @@ export async function PUT(request: NextRequest) {
     if (data.videoLinks !== undefined) updateData.videoLinks = JSON.stringify(data.videoLinks);
     if (data.subtopics !== undefined) updateData.subtopics = JSON.stringify(data.subtopics);
 
-    const topic = await prisma.aIRoadmapTopic.update({
-      where: { id },
+    const topic = await prisma.aIRoadmapTopic.findFirst({ where: { id, level: { userId: user.id } } });
+    if (!topic) return unauthorized();
+    const updatedTopic = await prisma.aIRoadmapTopic.update({
+      where: { id: topic.id },
       data: updateData,
     });
 
-    return NextResponse.json(topic);
+    return NextResponse.json(updatedTopic);
   } catch (error: any) {
     console.error('❌ Error updating topic:', error);
     return NextResponse.json(
@@ -75,15 +84,17 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Topic ID required' }, { status: 400 });
     }
 
-    await prisma.aIRoadmapTopic.delete({
-      where: { id },
-    });
+    const topic = await prisma.aIRoadmapTopic.findFirst({ where: { id, level: { userId: user.id } } });
+    if (!topic) return unauthorized();
+    await prisma.aIRoadmapTopic.delete({ where: { id: topic.id } });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

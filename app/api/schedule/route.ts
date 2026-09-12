@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authenticatedUser, unauthorized } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -7,7 +8,9 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const userId = user.id;
     const dayOfWeek = searchParams.get('dayOfWeek');
 
     if (!userId) {
@@ -39,7 +42,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('Received schedule data:', JSON.stringify(body, null, 2));
     
-    const { userId, ...data } = body;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const { ...data } = body;
+    const userId = user.id;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -131,6 +137,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const { id, ...data } = body;
 
     if (!id) {
@@ -154,8 +162,10 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    const existingBlock = await prisma.scheduleBlock.findFirst({ where: { id, userId: user.id } });
+    if (!existingBlock) return unauthorized();
     const scheduleBlock = await prisma.scheduleBlock.update({
-      where: { id },
+      where: { id: existingBlock.id },
       data: cleanData,
     });
 
@@ -172,6 +182,8 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const id = searchParams.get('id');
 
     if (!id) {
@@ -181,9 +193,9 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.scheduleBlock.delete({
-      where: { id },
-    });
+    const block = await prisma.scheduleBlock.findFirst({ where: { id, userId: user.id } });
+    if (!block) return unauthorized();
+    await prisma.scheduleBlock.delete({ where: { id: block.id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authenticatedUser, unauthorized } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -7,7 +8,9 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const userId = user.id;
     const status = searchParams.get('status');
 
     if (!userId) {
@@ -37,7 +40,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, ...data } = body;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const { ...data } = body;
+    const userId = user.id;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -85,6 +91,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const { id, ...data } = body;
 
     if (!id) {
@@ -111,8 +119,10 @@ export async function PUT(request: NextRequest) {
     if (data.researchIdeas !== undefined) updateData.researchIdeas = data.researchIdeas;
     if (data.materials !== undefined) updateData.materials = JSON.stringify(data.materials);
 
+    const existingPaper = await prisma.standaloneResearchPaper.findFirst({ where: { id, userId: user.id } });
+    if (!existingPaper) return unauthorized();
     const paper = await prisma.standaloneResearchPaper.update({
-      where: { id },
+      where: { id: existingPaper.id },
       data: updateData,
     });
 
@@ -129,15 +139,17 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Paper ID required' }, { status: 400 });
     }
 
-    await prisma.standaloneResearchPaper.delete({
-      where: { id },
-    });
+    const paper = await prisma.standaloneResearchPaper.findFirst({ where: { id, userId: user.id } });
+    if (!paper) return unauthorized();
+    await prisma.standaloneResearchPaper.delete({ where: { id: paper.id } });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

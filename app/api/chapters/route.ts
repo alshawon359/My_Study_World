@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authenticatedUser, unauthorized } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const subjectId = searchParams.get('subjectId');
 
     if (!subjectId) {
       return NextResponse.json({ error: 'Subject ID required' }, { status: 400 });
     }
 
+    const subject = await prisma.subject.findFirst({ where: { id: subjectId, userId: user.id } });
+    if (!subject) return unauthorized();
     const chapters = await prisma.chapter.findMany({
-      where: { subjectId },
+      where: { subjectId: subject.id },
       include: {
         materials: {
           orderBy: { order: 'asc' },
@@ -30,11 +35,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const { subjectId, title, description, topics } = body;
 
     if (!subjectId || !title) {
       return NextResponse.json({ error: 'Subject ID and title required' }, { status: 400 });
     }
+    const subject = await prisma.subject.findFirst({ where: { id: subjectId, userId: user.id } });
+    if (!subject) return unauthorized();
 
     // Get current chapter count for order
     const chapterCount = await prisma.chapter.count({
@@ -74,12 +83,16 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const { id, title, description, topics, completed } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Chapter ID required' }, { status: 400 });
     }
 
+    const chapterOwner = await prisma.chapter.findFirst({ where: { id, subject: { userId: user.id } } });
+    if (!chapterOwner) return unauthorized();
     const updateData: any = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
@@ -92,7 +105,7 @@ export async function PUT(request: NextRequest) {
       
       // Update subject completed chapters count
       const chapter = await prisma.chapter.findUnique({
-        where: { id },
+        where: { id: chapterOwner.id },
         select: { subjectId: true, completed: true },
       });
       
@@ -107,7 +120,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const updatedChapter = await prisma.chapter.update({
-      where: { id },
+      where: { id: chapterOwner.id },
       data: updateData,
       include: {
         materials: true,
@@ -124,20 +137,21 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Chapter ID required' }, { status: 400 });
     }
 
-    const chapter = await prisma.chapter.findUnique({
-      where: { id },
-      select: { subjectId: true, completed: true },
+    const chapter = await prisma.chapter.findFirst({
+      where: { id, subject: { userId: user.id } },
+      select: { id: true, subjectId: true, completed: true },
     });
 
-    await prisma.chapter.delete({
-      where: { id },
-    });
+    if (!chapter) return unauthorized();
+    await prisma.chapter.delete({ where: { id: chapter.id } });
 
     // Update subject chapter counts
     if (chapter) {

@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { TaskStatus } from '@prisma/client';
 import { getBDDate, getBDDateString, getBDTimeString, getBDStartOfDay, getBDEndOfDay } from '@/lib/date-utils';
+import { authenticatedUser, unauthorized } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log('📥 Generate tasks request:', JSON.stringify(body, null, 2));
     
-    const { userId, date } = body;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const { date } = body;
+    const userId = user.id;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });

@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Calendar,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -32,6 +33,9 @@ const navItems = [
 export function Navigation() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const logout = async () => { await fetch('/api/auth/logout', { method: 'POST' }); window.location.href = '/login'; };
+
+  if (pathname === '/login' || pathname === '/signup') return null;
 
   return (
     <>
@@ -66,6 +70,7 @@ export function Navigation() {
                   </Link>
                 );
               })}
+              <Button variant="ghost" size="sm" onClick={logout} title="Sign out"><LogOut className="h-3.5 w-3.5" /><span className="hidden xl:inline">Sign out</span></Button>
             </div>
           </div>
         </div>
@@ -101,6 +106,7 @@ export function Navigation() {
                   </Link>
                 );
               })}
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={logout} title="Sign out"><LogOut className="h-3.5 w-3.5" /></Button>
             </div>
           </div>
         </div>
@@ -154,6 +160,7 @@ export function Navigation() {
                   </Link>
                 );
               })}
+              <Button variant="ghost" size="sm" onClick={logout} className="w-full justify-start gap-2 h-9"><LogOut className="h-4 w-4" />Sign out</Button>
             </div>
           </div>
         )}

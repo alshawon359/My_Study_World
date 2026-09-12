@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getDateString } from '@/lib/utils';
 import { getBDStartOfDay, getBDEndOfDay } from '@/lib/date-utils';
+import { authenticatedUser, unauthorized } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -9,7 +10,9 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const userId = user.id;
     const dateStr = searchParams.get('date');
 
     console.log(`📥 GET tasks - userId: ${userId}, date: ${dateStr}`);
@@ -64,7 +67,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, ...data } = body;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const { ...data } = body;
+    const userId = user.id;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -88,6 +94,8 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const { id, status, actualStartTime, actualEndTime, ...data } = body;
 
     if (!id) {
@@ -104,8 +112,10 @@ export async function PATCH(request: NextRequest) {
       updateData.completedAt = new Date();
     }
 
+    const existingTask = await prisma.task.findFirst({ where: { id, userId: user.id } });
+    if (!existingTask) return unauthorized();
     const task = await prisma.task.update({
-      where: { id },
+      where: { id: existingTask.id },
       data: updateData,
     });
 

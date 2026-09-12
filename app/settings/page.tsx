@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 
 export default function SettingsPage() {
+  const [profile, setProfile] = useState<{ name: string; username: string } | null>(null);
   const [settings, setSettings] = useState({
     // Sleep
     sleepStartTime: '01:00',
@@ -50,6 +51,8 @@ export default function SettingsPage() {
     weeklyAIHours: 12,
     weeklyResearchHours: 6,
   });
+
+  useEffect(() => { fetch('/api/auth/me').then((response) => response.json()).then(({ user }) => setProfile(user)); }, []);
 
   const handleToggle = (key: string) => {
     setSettings((prev) => ({
@@ -91,7 +94,8 @@ export default function SettingsPage() {
                 <input
                   type="text"
                   className="w-full px-4 py-2 rounded-lg border bg-background"
-                  defaultValue="Shawon"
+                  value={profile?.name || ''}
+                  readOnly
                 />
               </div>
               <div>
@@ -99,7 +103,8 @@ export default function SettingsPage() {
                 <input
                   type="email"
                   className="w-full px-4 py-2 rounded-lg border bg-background"
-                  defaultValue="demo@mystudyworld.com"
+                  value={profile?.username ? `@${profile.username}` : ''}
+                  readOnly
                 />
               </div>
             </CardContent>

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authenticatedUser, unauthorized } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const { chapterId, title, type, description, fileUrl, externalUrl, content } = body;
 
     if (!chapterId || !title || !type) {
@@ -12,6 +15,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    const chapter = await prisma.chapter.findFirst({ where: { id: chapterId, subject: { userId: user.id } } });
+    if (!chapter) return unauthorized();
 
     // Get current material count for order
     const materialCount = await prisma.chapterMaterial.count({
@@ -41,15 +46,17 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Material ID required' }, { status: 400 });
     }
 
-    await prisma.chapterMaterial.delete({
-      where: { id },
-    });
+    const material = await prisma.chapterMaterial.findFirst({ where: { id, chapter: { subject: { userId: user.id } } } });
+    if (!material) return unauthorized();
+    await prisma.chapterMaterial.delete({ where: { id: material.id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

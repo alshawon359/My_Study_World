@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authenticatedUser, unauthorized } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const userId = user.id;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -62,7 +65,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('Creating subject:', JSON.stringify(body, null, 2));
     
-    const { userId, name, code, color, description, category } = body;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const { name, code, color, description, category } = body;
+    const userId = user.id;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });

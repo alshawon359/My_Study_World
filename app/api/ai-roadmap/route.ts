@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { authenticatedUser, unauthorized } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -7,7 +8,9 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const userId = user.id;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -36,7 +39,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, ...data } = body;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const { ...data } = body;
+    const userId = user.id;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -73,6 +79,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const { id, ...data } = body;
 
     if (!id) {
@@ -87,8 +95,10 @@ export async function PUT(request: NextRequest) {
     if (data.status !== undefined) updateData.status = data.status;
     if (data.order !== undefined) updateData.order = data.order;
 
+    const existingLevel = await prisma.aIRoadmapLevel.findFirst({ where: { id, userId: user.id } });
+    if (!existingLevel) return unauthorized();
     const level = await prisma.aIRoadmapLevel.update({
-      where: { id },
+      where: { id: existingLevel.id },
       data: updateData,
       include: {
         topics: true,
@@ -108,15 +118,17 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Level ID required' }, { status: 400 });
     }
 
-    await prisma.aIRoadmapLevel.delete({
-      where: { id },
-    });
+    const level = await prisma.aIRoadmapLevel.findFirst({ where: { id, userId: user.id } });
+    if (!level) return unauthorized();
+    await prisma.aIRoadmapLevel.delete({ where: { id: level.id } });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

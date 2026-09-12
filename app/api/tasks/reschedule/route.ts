@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { suggestRescheduleSlot } from '@/lib/scheduling-engine';
+import { authenticatedUser, unauthorized } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { taskId, userId, preferredDay, reason } = body;
+    const user = await authenticatedUser();
+    if (!user) return unauthorized();
+    const { taskId, preferredDay, reason } = body;
+    const userId = user.id;
 
     if (!taskId || !userId) {
       return NextResponse.json(
@@ -15,9 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the task
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-    });
+    const task = await prisma.task.findFirst({ where: { id: taskId, userId } });
 
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
